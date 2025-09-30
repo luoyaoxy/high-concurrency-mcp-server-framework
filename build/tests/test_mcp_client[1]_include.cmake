@@ -1,0 +1,5 @@
+if(EXISTS "/usr/team_project/mcp-tutorial/build/tests/test_mcp_client[1]_tests.cmake")
+  include("/usr/team_project/mcp-tutorial/build/tests/test_mcp_client[1]_tests.cmake")
+else()
+  add_test(test_mcp_client_NOT_BUILT test_mcp_client_NOT_BUILT)
+endif()

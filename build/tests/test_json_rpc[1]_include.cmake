@@ -1,0 +1,5 @@
+if(EXISTS "/usr/team_project/mcp-tutorial/build/tests/test_json_rpc[1]_tests.cmake")
+  include("/usr/team_project/mcp-tutorial/build/tests/test_json_rpc[1]_tests.cmake")
+else()
+  add_test(test_json_rpc_NOT_BUILT test_json_rpc_NOT_BUILT)
+endif()

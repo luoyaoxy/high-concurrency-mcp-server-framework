@@ -1,0 +1,20 @@
+[2025-08-21 16:40:00.128] [info] [mcp_server] [3916659] Logger 初始化成功 - name: mcp_server, file: logs/mcp_server.log, console: enabled
+[2025-08-21 16:40:00.128] [info] [mcp_server] [3916659] Logger 级别设置为: debug
+[2025-08-21 16:40:00.128] [info] [mcp_server] [3916659] MCP 日志系统初始化完成
+[2025-08-21 16:40:00.128] [info] [mcp_server] [3916659] 启动 MCP 天气服务器...
+[2025-08-21 16:40:00.128] [debug] [mcp_server] [3916659] 配置参数: port=8080, api_key=mock
+[2025-08-21 16:40:00.128] [info] [mcp_server] [3916659] 初始化模拟天气 API 后端
+[2025-08-21 16:40:00.128] [debug] [mcp_server] [3916659] 初始化 MCP 服务器
+[2025-08-21 16:40:00.128] [debug] [mcp_server] [3916659] 初始化 HTTP 服务器在端口 8080
+[2025-08-21 16:41:02.479] [warning] [mcp_server] [3916659] 收到关闭信号，正在关闭服务器...
+[2025-08-21 16:41:02.577] [info] [mcp_server] [3916659] Logger 正在关闭...
+[2025-08-21 16:41:55.632] [info] [mcp_server] [3917670] Logger 初始化成功 - name: mcp_server, file: logs/mcp_server.log, console: enabled
+[2025-08-21 16:41:55.632] [info] [mcp_server] [3917670] Logger 级别设置为: debug
+[2025-08-21 16:41:55.632] [info] [mcp_server] [3917670] MCP 日志系统初始化完成
+[2025-08-21 16:41:55.632] [info] [mcp_server] [3917670] 启动 MCP 天气服务器...
+[2025-08-21 16:41:55.632] [debug] [mcp_server] [3917670] 配置参数: port=8080, api_key=mock
+[2025-08-21 16:41:55.632] [info] [mcp_server] [3917670] 初始化模拟天气 API 后端
+[2025-08-21 16:41:55.632] [debug] [mcp_server] [3917670] 初始化 MCP 服务器
+[2025-08-21 16:41:55.632] [debug] [mcp_server] [3917670] 初始化 HTTP 服务器在端口 8080
+[2025-08-21 16:42:12.753] [warning] [mcp_server] [3917670] 收到关闭信号，正在关闭服务器...
+[2025-08-21 16:42:12.854] [info] [mcp_server] [3917670] Logger 正在关闭...

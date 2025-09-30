@@ -1,0 +1,5 @@
+add_test([=[ExampleTest.BasicAssertions]=]  /usr/team_project/mcp-tutorial/build/tests/test_example [==[--gtest_filter=ExampleTest.BasicAssertions]==] --gtest_also_run_disabled_tests)
+set_tests_properties([=[ExampleTest.BasicAssertions]=]  PROPERTIES WORKING_DIRECTORY /usr/team_project/mcp-tutorial/build/tests SKIP_REGULAR_EXPRESSION [==[\[  SKIPPED \]]==])
+add_test([=[ExampleTest.StringOperations]=]  /usr/team_project/mcp-tutorial/build/tests/test_example [==[--gtest_filter=ExampleTest.StringOperations]==] --gtest_also_run_disabled_tests)
+set_tests_properties([=[ExampleTest.StringOperations]=]  PROPERTIES WORKING_DIRECTORY /usr/team_project/mcp-tutorial/build/tests SKIP_REGULAR_EXPRESSION [==[\[  SKIPPED \]]==])
+set(  test_example_TESTS ExampleTest.BasicAssertions ExampleTest.StringOperations)

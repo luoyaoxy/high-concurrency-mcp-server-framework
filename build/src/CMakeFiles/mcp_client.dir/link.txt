@@ -1,0 +1,2 @@
+/usr/bin/ar qc libmcp_client.a CMakeFiles/mcp_client.dir/mcp_client/client.cpp.o
+/usr/bin/ranlib libmcp_client.a

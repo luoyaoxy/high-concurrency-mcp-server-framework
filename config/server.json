@@ -1,0 +1,119 @@
+{
+  "server": {
+    "port": 8080,
+    "host": "0.0.0.0",
+    "cors_enabled": true,
+    "request_buffer_size": 8192,
+    "listen_backlog": 10,
+    "shutdown_check_interval_ms": 100,
+    "socket_timeout_ms": 10
+  },
+  "logging": {
+    "logger_name": "mcp_server",
+    "log_file_path": "logs/mcp_server.log",
+    "max_file_size": 5242880,
+    "max_files": 3,
+    "console_output": true,
+    "default_level": "info",
+    "flush_level": "warn"
+  },
+  "weather_api": {
+    "openweathermap": {
+      "base_url": "https://api.openweathermap.org/data/2.5/",
+      "timeout_seconds": 30,
+      "connect_timeout_seconds": 10
+    },
+    "mock": {
+      "temperature_range": {
+        "min": -10.0,
+        "max": 35.0
+      },
+      "humidity_range": {
+        "min": 30.0,
+        "max": 90.0
+      },
+      "pressure_range": {
+        "min": 980.0,
+        "max": 1030.0
+      },
+      "wind_speed_range": {
+        "min": 0.0,
+        "max": 15.0
+      },
+      "forecast_temp_range": {
+        "min": -5.0,
+        "max": 30.0
+      },
+      "default_country": "CN",
+      "weather_descriptions": [
+        "clear sky",
+        "few clouds",
+        "scattered clouds",
+        "broken clouds",
+        "shower rain",
+        "rain",
+        "thunderstorm",
+        "snow",
+        "mist"
+      ],
+      "weather_icons": [
+        "01d",
+        "02d",
+        "03d",
+        "04d",
+        "09d",
+        "10d",
+        "11d",
+        "13d",
+        "50d"
+      ]
+    }
+  },
+  "mcp": {
+    "protocol_version": "2024-11-05",
+    "version": "1.0.0",
+    "name": "MCP Weather Server",
+    "error_codes": {
+      "parse_error": -32700,
+      "invalid_request": -32600,
+      "method_not_found": -32601,
+      "invalid_params": -32602,
+      "internal_error": -32603
+    }
+  },
+  "weather_rules": {
+    "hot_temperature_threshold": 25,
+    "cold_temperature_threshold": 10,
+    "coordinate_validation": {
+      "latitude_range": {
+        "min": -90,
+        "max": 90
+      },
+      "longitude_range": {
+        "min": -180,
+        "max": 180
+      }
+    },
+    "forecast_max_days": 5,
+    "kelvin_to_celsius_offset": 273.15
+  },
+  "http": {
+    "response_content_type": "application/json",
+    "sse_reconnect_delay_seconds": 5,
+    "status_codes": {
+      "ok": 200,
+      "bad_request": 400,
+      "not_found": 404,
+      "internal_error": 500
+    },
+    "cors_headers": {
+      "allow_origin": "*",
+      "allow_methods": "GET, POST, PUT, DELETE, OPTIONS",
+      "allow_headers": "Content-Type, Authorization"
+    }
+  },
+  "client": {
+    "default_timeout_seconds": 30,
+    "default_connect_timeout_seconds": 10
+  }
+}

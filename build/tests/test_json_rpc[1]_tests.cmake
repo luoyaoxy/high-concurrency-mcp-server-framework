@@ -1,0 +1,7 @@
+add_test([=[JsonRpcTest.RequestSerialization]=]  /usr/team_project/mcp-tutorial/build/tests/test_json_rpc [==[--gtest_filter=JsonRpcTest.RequestSerialization]==] --gtest_also_run_disabled_tests)
+set_tests_properties([=[JsonRpcTest.RequestSerialization]=]  PROPERTIES WORKING_DIRECTORY /usr/team_project/mcp-tutorial/build/tests SKIP_REGULAR_EXPRESSION [==[\[  SKIPPED \]]==])
+add_test([=[JsonRpcTest.ResponseSerialization]=]  /usr/team_project/mcp-tutorial/build/tests/test_json_rpc [==[--gtest_filter=JsonRpcTest.ResponseSerialization]==] --gtest_also_run_disabled_tests)
+set_tests_properties([=[JsonRpcTest.ResponseSerialization]=]  PROPERTIES WORKING_DIRECTORY /usr/team_project/mcp-tutorial/build/tests SKIP_REGULAR_EXPRESSION [==[\[  SKIPPED \]]==])
+add_test([=[JsonRpcTest.HandlerProcessing]=]  /usr/team_project/mcp-tutorial/build/tests/test_json_rpc [==[--gtest_filter=JsonRpcTest.HandlerProcessing]==] --gtest_also_run_disabled_tests)
+set_tests_properties([=[JsonRpcTest.HandlerProcessing]=]  PROPERTIES WORKING_DIRECTORY /usr/team_project/mcp-tutorial/build/tests SKIP_REGULAR_EXPRESSION [==[\[  SKIPPED \]]==])
+set(  test_json_rpc_TESTS JsonRpcTest.RequestSerialization JsonRpcTest.ResponseSerialization JsonRpcTest.HandlerProcessing)
