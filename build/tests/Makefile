@@ -127,118 +127,128 @@ depend:
 .PHONY : depend
 
 # Convenience name for target.
-tests/CMakeFiles/test_json_rpc.dir/rule:
-	cd /usr/team_project/mcp-tutorial/build && $(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 tests/CMakeFiles/test_json_rpc.dir/rule
-.PHONY : tests/CMakeFiles/test_json_rpc.dir/rule
+tests/CMakeFiles/test_logger.dir/rule:
+	cd /usr/team_project/mcp-tutorial/build && $(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 tests/CMakeFiles/test_logger.dir/rule
+.PHONY : tests/CMakeFiles/test_logger.dir/rule
 
 # Convenience name for target.
-test_json_rpc: tests/CMakeFiles/test_json_rpc.dir/rule
-.PHONY : test_json_rpc
+test_logger: tests/CMakeFiles/test_logger.dir/rule
+.PHONY : test_logger
 
 # fast build rule for target.
-test_json_rpc/fast:
-	cd /usr/team_project/mcp-tutorial/build && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/test_json_rpc.dir/build.make tests/CMakeFiles/test_json_rpc.dir/build
-.PHONY : test_json_rpc/fast
+test_logger/fast:
+	cd /usr/team_project/mcp-tutorial/build && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/test_logger.dir/build.make tests/CMakeFiles/test_logger.dir/build
+.PHONY : test_logger/fast
 
 # Convenience name for target.
-tests/CMakeFiles/test_mcp_client.dir/rule:
-	cd /usr/team_project/mcp-tutorial/build && $(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 tests/CMakeFiles/test_mcp_client.dir/rule
-.PHONY : tests/CMakeFiles/test_mcp_client.dir/rule
+tests/CMakeFiles/test_config.dir/rule:
+	cd /usr/team_project/mcp-tutorial/build && $(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 tests/CMakeFiles/test_config.dir/rule
+.PHONY : tests/CMakeFiles/test_config.dir/rule
 
 # Convenience name for target.
-test_mcp_client: tests/CMakeFiles/test_mcp_client.dir/rule
-.PHONY : test_mcp_client
+test_config: tests/CMakeFiles/test_config.dir/rule
+.PHONY : test_config
 
 # fast build rule for target.
-test_mcp_client/fast:
-	cd /usr/team_project/mcp-tutorial/build && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/test_mcp_client.dir/build.make tests/CMakeFiles/test_mcp_client.dir/build
-.PHONY : test_mcp_client/fast
+test_config/fast:
+	cd /usr/team_project/mcp-tutorial/build && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/test_config.dir/build.make tests/CMakeFiles/test_config.dir/build
+.PHONY : test_config/fast
 
-# Convenience name for target.
-tests/CMakeFiles/test_example.dir/rule:
-	cd /usr/team_project/mcp-tutorial/build && $(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 tests/CMakeFiles/test_example.dir/rule
-.PHONY : tests/CMakeFiles/test_example.dir/rule
-
-# Convenience name for target.
-test_example: tests/CMakeFiles/test_example.dir/rule
-.PHONY : test_example
-
-# fast build rule for target.
-test_example/fast:
-	cd /usr/team_project/mcp-tutorial/build && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/test_example.dir/build.make tests/CMakeFiles/test_example.dir/build
-.PHONY : test_example/fast
-
-test_example.o: test_example.cpp.o
-.PHONY : test_example.o
+__/src/lib/config.o: __/src/lib/config.cpp.o
+.PHONY : __/src/lib/config.o
 
 # target to build an object file
-test_example.cpp.o:
-	cd /usr/team_project/mcp-tutorial/build && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/test_example.dir/build.make tests/CMakeFiles/test_example.dir/test_example.cpp.o
-.PHONY : test_example.cpp.o
+__/src/lib/config.cpp.o:
+	cd /usr/team_project/mcp-tutorial/build && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/test_config.dir/build.make tests/CMakeFiles/test_config.dir/__/src/lib/config.cpp.o
+.PHONY : __/src/lib/config.cpp.o
 
-test_example.i: test_example.cpp.i
-.PHONY : test_example.i
+__/src/lib/config.i: __/src/lib/config.cpp.i
+.PHONY : __/src/lib/config.i
 
 # target to preprocess a source file
-test_example.cpp.i:
-	cd /usr/team_project/mcp-tutorial/build && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/test_example.dir/build.make tests/CMakeFiles/test_example.dir/test_example.cpp.i
-.PHONY : test_example.cpp.i
+__/src/lib/config.cpp.i:
+	cd /usr/team_project/mcp-tutorial/build && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/test_config.dir/build.make tests/CMakeFiles/test_config.dir/__/src/lib/config.cpp.i
+.PHONY : __/src/lib/config.cpp.i
 
-test_example.s: test_example.cpp.s
-.PHONY : test_example.s
+__/src/lib/config.s: __/src/lib/config.cpp.s
+.PHONY : __/src/lib/config.s
 
 # target to generate assembly for a file
-test_example.cpp.s:
-	cd /usr/team_project/mcp-tutorial/build && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/test_example.dir/build.make tests/CMakeFiles/test_example.dir/test_example.cpp.s
-.PHONY : test_example.cpp.s
+__/src/lib/config.cpp.s:
+	cd /usr/team_project/mcp-tutorial/build && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/test_config.dir/build.make tests/CMakeFiles/test_config.dir/__/src/lib/config.cpp.s
+.PHONY : __/src/lib/config.cpp.s
 
-test_json_rpc.o: test_json_rpc.cpp.o
-.PHONY : test_json_rpc.o
+__/src/logger/logger.o: __/src/logger/logger.cpp.o
+.PHONY : __/src/logger/logger.o
 
 # target to build an object file
-test_json_rpc.cpp.o:
-	cd /usr/team_project/mcp-tutorial/build && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/test_json_rpc.dir/build.make tests/CMakeFiles/test_json_rpc.dir/test_json_rpc.cpp.o
-.PHONY : test_json_rpc.cpp.o
+__/src/logger/logger.cpp.o:
+	cd /usr/team_project/mcp-tutorial/build && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/test_logger.dir/build.make tests/CMakeFiles/test_logger.dir/__/src/logger/logger.cpp.o
+.PHONY : __/src/logger/logger.cpp.o
 
-test_json_rpc.i: test_json_rpc.cpp.i
-.PHONY : test_json_rpc.i
+__/src/logger/logger.i: __/src/logger/logger.cpp.i
+.PHONY : __/src/logger/logger.i
 
 # target to preprocess a source file
-test_json_rpc.cpp.i:
-	cd /usr/team_project/mcp-tutorial/build && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/test_json_rpc.dir/build.make tests/CMakeFiles/test_json_rpc.dir/test_json_rpc.cpp.i
-.PHONY : test_json_rpc.cpp.i
+__/src/logger/logger.cpp.i:
+	cd /usr/team_project/mcp-tutorial/build && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/test_logger.dir/build.make tests/CMakeFiles/test_logger.dir/__/src/logger/logger.cpp.i
+.PHONY : __/src/logger/logger.cpp.i
 
-test_json_rpc.s: test_json_rpc.cpp.s
-.PHONY : test_json_rpc.s
+__/src/logger/logger.s: __/src/logger/logger.cpp.s
+.PHONY : __/src/logger/logger.s
 
 # target to generate assembly for a file
-test_json_rpc.cpp.s:
-	cd /usr/team_project/mcp-tutorial/build && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/test_json_rpc.dir/build.make tests/CMakeFiles/test_json_rpc.dir/test_json_rpc.cpp.s
-.PHONY : test_json_rpc.cpp.s
+__/src/logger/logger.cpp.s:
+	cd /usr/team_project/mcp-tutorial/build && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/test_logger.dir/build.make tests/CMakeFiles/test_logger.dir/__/src/logger/logger.cpp.s
+.PHONY : __/src/logger/logger.cpp.s
 
-test_mcp_client.o: test_mcp_client.cpp.o
-.PHONY : test_mcp_client.o
+test_config.o: test_config.cpp.o
+.PHONY : test_config.o
 
 # target to build an object file
-test_mcp_client.cpp.o:
-	cd /usr/team_project/mcp-tutorial/build && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/test_mcp_client.dir/build.make tests/CMakeFiles/test_mcp_client.dir/test_mcp_client.cpp.o
-.PHONY : test_mcp_client.cpp.o
+test_config.cpp.o:
+	cd /usr/team_project/mcp-tutorial/build && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/test_config.dir/build.make tests/CMakeFiles/test_config.dir/test_config.cpp.o
+.PHONY : test_config.cpp.o
 
-test_mcp_client.i: test_mcp_client.cpp.i
-.PHONY : test_mcp_client.i
+test_config.i: test_config.cpp.i
+.PHONY : test_config.i
 
 # target to preprocess a source file
-test_mcp_client.cpp.i:
-	cd /usr/team_project/mcp-tutorial/build && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/test_mcp_client.dir/build.make tests/CMakeFiles/test_mcp_client.dir/test_mcp_client.cpp.i
-.PHONY : test_mcp_client.cpp.i
+test_config.cpp.i:
+	cd /usr/team_project/mcp-tutorial/build && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/test_config.dir/build.make tests/CMakeFiles/test_config.dir/test_config.cpp.i
+.PHONY : test_config.cpp.i
 
-test_mcp_client.s: test_mcp_client.cpp.s
-.PHONY : test_mcp_client.s
+test_config.s: test_config.cpp.s
+.PHONY : test_config.s
 
 # target to generate assembly for a file
-test_mcp_client.cpp.s:
-	cd /usr/team_project/mcp-tutorial/build && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/test_mcp_client.dir/build.make tests/CMakeFiles/test_mcp_client.dir/test_mcp_client.cpp.s
-.PHONY : test_mcp_client.cpp.s
+test_config.cpp.s:
+	cd /usr/team_project/mcp-tutorial/build && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/test_config.dir/build.make tests/CMakeFiles/test_config.dir/test_config.cpp.s
+.PHONY : test_config.cpp.s
+
+test_logger.o: test_logger.cpp.o
+.PHONY : test_logger.o
+
+# target to build an object file
+test_logger.cpp.o:
+	cd /usr/team_project/mcp-tutorial/build && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/test_logger.dir/build.make tests/CMakeFiles/test_logger.dir/test_logger.cpp.o
+.PHONY : test_logger.cpp.o
+
+test_logger.i: test_logger.cpp.i
+.PHONY : test_logger.i
+
+# target to preprocess a source file
+test_logger.cpp.i:
+	cd /usr/team_project/mcp-tutorial/build && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/test_logger.dir/build.make tests/CMakeFiles/test_logger.dir/test_logger.cpp.i
+.PHONY : test_logger.cpp.i
+
+test_logger.s: test_logger.cpp.s
+.PHONY : test_logger.s
+
+# target to generate assembly for a file
+test_logger.cpp.s:
+	cd /usr/team_project/mcp-tutorial/build && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/test_logger.dir/build.make tests/CMakeFiles/test_logger.dir/test_logger.cpp.s
+.PHONY : test_logger.cpp.s
 
 # Help Target
 help:
@@ -249,18 +259,20 @@ help:
 	@echo "... edit_cache"
 	@echo "... rebuild_cache"
 	@echo "... test"
-	@echo "... test_example"
-	@echo "... test_json_rpc"
-	@echo "... test_mcp_client"
-	@echo "... test_example.o"
-	@echo "... test_example.i"
-	@echo "... test_example.s"
-	@echo "... test_json_rpc.o"
-	@echo "... test_json_rpc.i"
-	@echo "... test_json_rpc.s"
-	@echo "... test_mcp_client.o"
-	@echo "... test_mcp_client.i"
-	@echo "... test_mcp_client.s"
+	@echo "... test_config"
+	@echo "... test_logger"
+	@echo "... __/src/lib/config.o"
+	@echo "... __/src/lib/config.i"
+	@echo "... __/src/lib/config.s"
+	@echo "... __/src/logger/logger.o"
+	@echo "... __/src/logger/logger.i"
+	@echo "... __/src/logger/logger.s"
+	@echo "... test_config.o"
+	@echo "... test_config.i"
+	@echo "... test_config.s"
+	@echo "... test_logger.o"
+	@echo "... test_logger.i"
+	@echo "... test_logger.s"
 .PHONY : help
 
 

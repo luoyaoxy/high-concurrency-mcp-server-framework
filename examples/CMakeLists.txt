@@ -1,23 +1,20 @@
-# Weather Client Example
-add_executable(weather_client
-    weather_client.cpp
+# Examples
+
+# Configuration and Logging Demo
+add_executable(config_demo
+    config_demo.cpp
 )
 
-target_link_libraries(weather_client
-    mcp_client
+target_link_libraries(config_demo
     mcp_lib
 )
 
-# Simple MCP Client Example
-add_executable(simple_client
-    simple_client.cpp
-)
-
-target_link_libraries(simple_client
-    mcp_client
-    mcp_lib
-)
-
-# Logger example
-add_executable(logger_example logger_example.cpp)
-target_link_libraries(logger_example mcp_lib)
+# ===================================================================
+# 🔧 扩展位置：在这里添加更多示例程序
+# ===================================================================
+# 示例：
+# add_executable(another_example
+#     another_example.cpp
+# )
+# target_link_libraries(another_example mcp_lib)
+# ===================================================================

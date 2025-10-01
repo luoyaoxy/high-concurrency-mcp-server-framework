@@ -208,22 +208,25 @@ CMAKE_TOOLCHAIN_FILE:UNINITIALIZED=/root/.vcpkg/scripts/buildsystems/vcpkg.cmake
 CMAKE_VERBOSE_MAKEFILE:BOOL=FALSE
 
 //The directory containing a CMake configuration file for CURL.
-CURL_DIR:PATH=/root/.vcpkg/installed/x64-linux/share/curl
+CURL_DIR:PATH=/usr/team_project/mcp-tutorial/build/vcpkg_installed/x64-linux/share/curl
+
+//Enable AddressSanitizer for memory error detection
+ENABLE_ASAN:BOOL=OFF
 
 //The directory containing a CMake configuration file for GTest.
-GTest_DIR:PATH=/root/.vcpkg/installed/x64-linux/share/gtest
+GTest_DIR:PATH=/usr/team_project/mcp-tutorial/build/vcpkg_installed/x64-linux/share/gtest
 
 //Path to a library.
-OPENSSL_CRYPTO_LIBRARY:FILEPATH=/root/.vcpkg/installed/x64-linux/lib/libcrypto.a
+OPENSSL_CRYPTO_LIBRARY:FILEPATH=/usr/team_project/mcp-tutorial/build/vcpkg_installed/x64-linux/lib/libcrypto.a
 
 //Path to a library.
 OPENSSL_DL_LIBRARY:FILEPATH=/usr/lib/x86_64-linux-gnu/libdl.a
 
 //Path to a file.
-OPENSSL_INCLUDE_DIR:PATH=/root/.vcpkg/installed/x64-linux/include
+OPENSSL_INCLUDE_DIR:PATH=/usr/team_project/mcp-tutorial/build/vcpkg_installed/x64-linux/include
 
 //Path to a library.
-OPENSSL_SSL_LIBRARY:FILEPATH=/root/.vcpkg/installed/x64-linux/lib/libssl.a
+OPENSSL_SSL_LIBRARY:FILEPATH=/usr/team_project/mcp-tutorial/build/vcpkg_installed/x64-linux/lib/libssl.a
 
 //Arguments to supply to pkg-config
 PKG_CONFIG_ARGN:STRING=
@@ -235,15 +238,34 @@ PKG_CONFIG_EXECUTABLE:FILEPATH=/usr/bin/pkg-config
 // executables.
 VCPKG_APPLOCAL_DEPS:BOOL=ON
 
+//Additional options to bootstrap vcpkg
+VCPKG_BOOTSTRAP_OPTIONS:STRING=
+
 //The directory which contains the installed libraries for each
 // triplet
-VCPKG_INSTALLED_DIR:PATH=/root/.vcpkg/installed
+VCPKG_INSTALLED_DIR:PATH=/usr/team_project/mcp-tutorial/build/vcpkg_installed
+
+//Additional install options to pass to vcpkg
+VCPKG_INSTALL_OPTIONS:STRING=
 
 //The path to the vcpkg manifest directory.
-VCPKG_MANIFEST_DIR:PATH=
+VCPKG_MANIFEST_DIR:PATH=/usr/team_project/mcp-tutorial
+
+//Install the dependencies listed in your manifest:
+//\n    If this is off, you will have to manually install your dependencies.
+//\n    See https://github.com/microsoft/vcpkg/tree/master/docs/specifications/manifests.md
+// for more info.
+//\n
+VCPKG_MANIFEST_INSTALL:BOOL=ON
 
 //Use manifest mode, as opposed to classic mode.
-VCPKG_MANIFEST_MODE:BOOL=OFF
+VCPKG_MANIFEST_MODE:BOOL=ON
+
+//Overlay ports to use for vcpkg install in manifest mode
+VCPKG_OVERLAY_PORTS:STRING=
+
+//Overlay triplets to use for vcpkg install in manifest mode
+VCPKG_OVERLAY_TRIPLETS:STRING=
 
 //Appends the vcpkg paths to CMAKE_PREFIX_PATH, CMAKE_LIBRARY_PATH
 // and CMAKE_FIND_ROOT_PATH so that vcpkg libraries/packages are
@@ -271,23 +293,23 @@ X_VCPKG_APPLOCAL_DEPS_INSTALL:BOOL=OFF
 X_VCPKG_APPLOCAL_DEPS_SERIALIZED:BOOL=OFF
 
 //Path to a file.
-ZLIB_INCLUDE_DIR:PATH=/root/.vcpkg/installed/x64-linux/include
+ZLIB_INCLUDE_DIR:PATH=/usr/team_project/mcp-tutorial/build/vcpkg_installed/x64-linux/include
 
 //Path to a library.
-ZLIB_LIBRARY_DEBUG:FILEPATH=/root/.vcpkg/installed/x64-linux/debug/lib/libz.a
+ZLIB_LIBRARY_DEBUG:FILEPATH=/usr/team_project/mcp-tutorial/build/vcpkg_installed/x64-linux/debug/lib/libz.a
 
 //Path to a library.
-ZLIB_LIBRARY_RELEASE:FILEPATH=/root/.vcpkg/installed/x64-linux/lib/libz.a
+ZLIB_LIBRARY_RELEASE:FILEPATH=/usr/team_project/mcp-tutorial/build/vcpkg_installed/x64-linux/lib/libz.a
 
 //Path to a program.
 Z_VCPKG_CL:FILEPATH=Z_VCPKG_CL-NOTFOUND
 
 //The directory which contains the installed libraries for each
 // triplet
-_VCPKG_INSTALLED_DIR:PATH=/root/.vcpkg/installed
+_VCPKG_INSTALLED_DIR:PATH=/usr/team_project/mcp-tutorial/build/vcpkg_installed
 
 //The directory containing a CMake configuration file for fmt.
-fmt_DIR:PATH=/root/.vcpkg/installed/x64-linux/share/fmt
+fmt_DIR:PATH=/usr/team_project/mcp-tutorial/build/vcpkg_installed/x64-linux/share/fmt
 
 //Value Computed by CMake
 mcp-tutorial_BINARY_DIR:STATIC=/usr/team_project/mcp-tutorial/build
@@ -299,19 +321,19 @@ mcp-tutorial_IS_TOP_LEVEL:STATIC=ON
 mcp-tutorial_SOURCE_DIR:STATIC=/usr/team_project/mcp-tutorial
 
 //The directory containing a CMake configuration file for nlohmann_json.
-nlohmann_json_DIR:PATH=/root/.vcpkg/installed/x64-linux/share/nlohmann_json
+nlohmann_json_DIR:PATH=/usr/team_project/mcp-tutorial/build/vcpkg_installed/x64-linux/share/nlohmann_json
 
 //Path to a library.
-pkgcfg_lib__OPENSSL_crypto:FILEPATH=/root/.vcpkg/installed/x64-linux/lib/libcrypto.a
+pkgcfg_lib__OPENSSL_crypto:FILEPATH=/usr/team_project/mcp-tutorial/build/vcpkg_installed/x64-linux/lib/libcrypto.a
 
 //Path to a library.
 pkgcfg_lib__OPENSSL_dl:FILEPATH=/usr/lib/x86_64-linux-gnu/libdl.a
 
 //Path to a library.
-pkgcfg_lib__OPENSSL_ssl:FILEPATH=/root/.vcpkg/installed/x64-linux/lib/libssl.a
+pkgcfg_lib__OPENSSL_ssl:FILEPATH=/usr/team_project/mcp-tutorial/build/vcpkg_installed/x64-linux/lib/libssl.a
 
 //The directory containing a CMake configuration file for spdlog.
-spdlog_DIR:PATH=/root/.vcpkg/installed/x64-linux/share/spdlog
+spdlog_DIR:PATH=/usr/team_project/mcp-tutorial/build/vcpkg_installed/x64-linux/share/spdlog
 
 
 ########################
@@ -454,23 +476,23 @@ CMAKE_VERBOSE_MAKEFILE-ADVANCED:INTERNAL=1
 //ADVANCED property for variable: CURL_LIBRARY_DEBUG
 CURL_LIBRARY_DEBUG-ADVANCED:INTERNAL=1
 //vcpkg
-CURL_LIBRARY_DEBUG:INTERNAL=/root/.vcpkg/installed/x64-linux/debug/lib/libcurl-d.a
+CURL_LIBRARY_DEBUG:INTERNAL=/usr/team_project/mcp-tutorial/build/vcpkg_installed/x64-linux/debug/lib/libcurl-d.a
 //ADVANCED property for variable: CURL_LIBRARY_RELEASE
 CURL_LIBRARY_RELEASE-ADVANCED:INTERNAL=1
 //vcpkg
-CURL_LIBRARY_RELEASE:INTERNAL=/root/.vcpkg/installed/x64-linux/lib/libcurl.a
+CURL_LIBRARY_RELEASE:INTERNAL=/usr/team_project/mcp-tutorial/build/vcpkg_installed/x64-linux/lib/libcurl.a
 //Details about finding GTest
-FIND_PACKAGE_MESSAGE_DETAILS_GTest:INTERNAL=[/root/.vcpkg/installed/x64-linux/share/gtest/GTestConfig.cmake][c ][v1.17.0()]
+FIND_PACKAGE_MESSAGE_DETAILS_GTest:INTERNAL=[/usr/team_project/mcp-tutorial/build/vcpkg_installed/x64-linux/share/gtest/GTestConfig.cmake][c ][v1.17.0()]
 //Details about finding OpenSSL
-FIND_PACKAGE_MESSAGE_DETAILS_OpenSSL:INTERNAL=[/root/.vcpkg/installed/x64-linux/lib/libcrypto.a][/root/.vcpkg/installed/x64-linux/include][c ][v3.5.0(3)]
+FIND_PACKAGE_MESSAGE_DETAILS_OpenSSL:INTERNAL=[/usr/team_project/mcp-tutorial/build/vcpkg_installed/x64-linux/lib/libcrypto.a][/usr/team_project/mcp-tutorial/build/vcpkg_installed/x64-linux/include][c ][v3.5.0(3)]
 //Details about finding PkgConfig
 FIND_PACKAGE_MESSAGE_DETAILS_PkgConfig:INTERNAL=[/usr/bin/pkg-config][v1.8.1()]
 //Details about finding Threads
 FIND_PACKAGE_MESSAGE_DETAILS_Threads:INTERNAL=[TRUE][v()]
 //Details about finding ZLIB
-FIND_PACKAGE_MESSAGE_DETAILS_ZLIB:INTERNAL=[optimized;/root/.vcpkg/installed/x64-linux/lib/libz.a;debug;/root/.vcpkg/installed/x64-linux/debug/lib/libz.a][/root/.vcpkg/installed/x64-linux/include][c ][v1.3.1(1)]
+FIND_PACKAGE_MESSAGE_DETAILS_ZLIB:INTERNAL=[optimized;/usr/team_project/mcp-tutorial/build/vcpkg_installed/x64-linux/lib/libz.a;debug;/usr/team_project/mcp-tutorial/build/vcpkg_installed/x64-linux/debug/lib/libz.a][/usr/team_project/mcp-tutorial/build/vcpkg_installed/x64-linux/include][c ][v1.3.1(1)]
 //Details about finding nlohmann_json
-FIND_PACKAGE_MESSAGE_DETAILS_nlohmann_json:INTERNAL=[/root/.vcpkg/installed/x64-linux/share/nlohmann_json/nlohmann_jsonConfig.cmake][v3.12.0()]
+FIND_PACKAGE_MESSAGE_DETAILS_nlohmann_json:INTERNAL=[/usr/team_project/mcp-tutorial/build/vcpkg_installed/x64-linux/share/nlohmann_json/nlohmann_jsonConfig.cmake][v3.12.0()]
 //ADVANCED property for variable: OPENSSL_CRYPTO_LIBRARY
 OPENSSL_CRYPTO_LIBRARY-ADVANCED:INTERNAL=1
 //ADVANCED property for variable: OPENSSL_INCLUDE_DIR
@@ -481,12 +503,6 @@ OPENSSL_SSL_LIBRARY-ADVANCED:INTERNAL=1
 PKG_CONFIG_ARGN-ADVANCED:INTERNAL=1
 //ADVANCED property for variable: PKG_CONFIG_EXECUTABLE
 PKG_CONFIG_EXECUTABLE-ADVANCED:INTERNAL=1
-//Install the dependencies listed in your manifest:
-//\n    If this is off, you will have to manually install your dependencies.
-//\n    See https://github.com/microsoft/vcpkg/tree/master/docs/specifications/manifests.md
-// for more info.
-//\n
-VCPKG_MANIFEST_INSTALL:INTERNAL=OFF
 //ADVANCED property for variable: VCPKG_VERBOSE
 VCPKG_VERBOSE-ADVANCED:INTERNAL=1
 //ADVANCED property for variable: ZLIB_INCLUDE_DIR
@@ -496,37 +512,37 @@ ZLIB_LIBRARY_DEBUG-ADVANCED:INTERNAL=1
 //ADVANCED property for variable: ZLIB_LIBRARY_RELEASE
 ZLIB_LIBRARY_RELEASE-ADVANCED:INTERNAL=1
 //Making sure VCPKG_MANIFEST_MODE doesn't change
-Z_VCPKG_CHECK_MANIFEST_MODE:INTERNAL=OFF
+Z_VCPKG_CHECK_MANIFEST_MODE:INTERNAL=ON
 //Vcpkg root directory
 Z_VCPKG_ROOT_DIR:INTERNAL=/root/.vcpkg
 //linker supports push/pop state
 _CMAKE_LINKER_PUSHPOP_STATE_SUPPORTED:INTERNAL=TRUE
-_OPENSSL_CFLAGS:INTERNAL=-I/root/.vcpkg/installed/x64-linux/lib/pkgconfig/../../include
+_OPENSSL_CFLAGS:INTERNAL=-I/usr/team_project/mcp-tutorial/build/vcpkg_installed/x64-linux/lib/pkgconfig/../../include
 _OPENSSL_CFLAGS_I:INTERNAL=
 _OPENSSL_CFLAGS_OTHER:INTERNAL=
 _OPENSSL_FOUND:INTERNAL=1
-_OPENSSL_INCLUDEDIR:INTERNAL=/root/.vcpkg/installed/x64-linux/lib/pkgconfig/../../include
-_OPENSSL_INCLUDE_DIRS:INTERNAL=/root/.vcpkg/installed/x64-linux/lib/pkgconfig/../../include
-_OPENSSL_LDFLAGS:INTERNAL=-L/root/.vcpkg/installed/x64-linux/lib/pkgconfig/../../lib;-lssl;-lcrypto;-ldl;-pthread
+_OPENSSL_INCLUDEDIR:INTERNAL=/usr/team_project/mcp-tutorial/build/vcpkg_installed/x64-linux/lib/pkgconfig/../../include
+_OPENSSL_INCLUDE_DIRS:INTERNAL=/usr/team_project/mcp-tutorial/build/vcpkg_installed/x64-linux/lib/pkgconfig/../../include
+_OPENSSL_LDFLAGS:INTERNAL=-L/usr/team_project/mcp-tutorial/build/vcpkg_installed/x64-linux/lib/pkgconfig/../../lib;-lssl;-lcrypto;-ldl;-pthread
 _OPENSSL_LDFLAGS_OTHER:INTERNAL=-pthread
-_OPENSSL_LIBDIR:INTERNAL=/root/.vcpkg/installed/x64-linux/lib/pkgconfig/../../lib
+_OPENSSL_LIBDIR:INTERNAL=/usr/team_project/mcp-tutorial/build/vcpkg_installed/x64-linux/lib/pkgconfig/../../lib
 _OPENSSL_LIBRARIES:INTERNAL=ssl;crypto;dl
-_OPENSSL_LIBRARY_DIRS:INTERNAL=/root/.vcpkg/installed/x64-linux/lib/pkgconfig/../../lib
+_OPENSSL_LIBRARY_DIRS:INTERNAL=/usr/team_project/mcp-tutorial/build/vcpkg_installed/x64-linux/lib/pkgconfig/../../lib
 _OPENSSL_LIBS:INTERNAL=
 _OPENSSL_LIBS_L:INTERNAL=
 _OPENSSL_LIBS_OTHER:INTERNAL=
 _OPENSSL_LIBS_PATHS:INTERNAL=
 _OPENSSL_MODULE_NAME:INTERNAL=openssl
-_OPENSSL_PREFIX:INTERNAL=/root/.vcpkg/installed/x64-linux/lib/pkgconfig/../..
-_OPENSSL_STATIC_CFLAGS:INTERNAL=-I/root/.vcpkg/installed/x64-linux/lib/pkgconfig/../../include
+_OPENSSL_PREFIX:INTERNAL=/usr/team_project/mcp-tutorial/build/vcpkg_installed/x64-linux/lib/pkgconfig/../..
+_OPENSSL_STATIC_CFLAGS:INTERNAL=-I/usr/team_project/mcp-tutorial/build/vcpkg_installed/x64-linux/lib/pkgconfig/../../include
 _OPENSSL_STATIC_CFLAGS_I:INTERNAL=
 _OPENSSL_STATIC_CFLAGS_OTHER:INTERNAL=
-_OPENSSL_STATIC_INCLUDE_DIRS:INTERNAL=/root/.vcpkg/installed/x64-linux/lib/pkgconfig/../../include
-_OPENSSL_STATIC_LDFLAGS:INTERNAL=-L/root/.vcpkg/installed/x64-linux/lib/pkgconfig/../../lib;-lssl;-lcrypto;-ldl;-pthread
+_OPENSSL_STATIC_INCLUDE_DIRS:INTERNAL=/usr/team_project/mcp-tutorial/build/vcpkg_installed/x64-linux/lib/pkgconfig/../../include
+_OPENSSL_STATIC_LDFLAGS:INTERNAL=-L/usr/team_project/mcp-tutorial/build/vcpkg_installed/x64-linux/lib/pkgconfig/../../lib;-lssl;-lcrypto;-ldl;-pthread
 _OPENSSL_STATIC_LDFLAGS_OTHER:INTERNAL=-pthread
 _OPENSSL_STATIC_LIBDIR:INTERNAL=
 _OPENSSL_STATIC_LIBRARIES:INTERNAL=ssl;crypto;dl
-_OPENSSL_STATIC_LIBRARY_DIRS:INTERNAL=/root/.vcpkg/installed/x64-linux/lib/pkgconfig/../../lib
+_OPENSSL_STATIC_LIBRARY_DIRS:INTERNAL=/usr/team_project/mcp-tutorial/build/vcpkg_installed/x64-linux/lib/pkgconfig/../../lib
 _OPENSSL_STATIC_LIBS:INTERNAL=
 _OPENSSL_STATIC_LIBS_L:INTERNAL=
 _OPENSSL_STATIC_LIBS_OTHER:INTERNAL=
@@ -544,5 +560,5 @@ pkgcfg_lib__OPENSSL_crypto-ADVANCED:INTERNAL=1
 pkgcfg_lib__OPENSSL_dl-ADVANCED:INTERNAL=1
 //ADVANCED property for variable: pkgcfg_lib__OPENSSL_ssl
 pkgcfg_lib__OPENSSL_ssl-ADVANCED:INTERNAL=1
-prefix_result:INTERNAL=/root/.vcpkg/installed/x64-linux/lib/pkgconfig/../../lib
+prefix_result:INTERNAL=/usr/team_project/mcp-tutorial/build/vcpkg_installed/x64-linux/lib/pkgconfig/../../lib
 

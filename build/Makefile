@@ -140,108 +140,56 @@ mcp_lib/fast:
 .PHONY : mcp_lib/fast
 
 #=============================================================================
-# Target rules for targets named mcp_client
+# Target rules for targets named mcp_server
 
 # Build rule for target.
-mcp_client: cmake_check_build_system
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 mcp_client
-.PHONY : mcp_client
+mcp_server: cmake_check_build_system
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 mcp_server
+.PHONY : mcp_server
 
 # fast build rule for target.
-mcp_client/fast:
-	$(MAKE) $(MAKESILENT) -f src/CMakeFiles/mcp_client.dir/build.make src/CMakeFiles/mcp_client.dir/build
-.PHONY : mcp_client/fast
+mcp_server/fast:
+	$(MAKE) $(MAKESILENT) -f src/CMakeFiles/mcp_server.dir/build.make src/CMakeFiles/mcp_server.dir/build
+.PHONY : mcp_server/fast
 
 #=============================================================================
-# Target rules for targets named mcp_weather_server
+# Target rules for targets named config_demo
 
 # Build rule for target.
-mcp_weather_server: cmake_check_build_system
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 mcp_weather_server
-.PHONY : mcp_weather_server
+config_demo: cmake_check_build_system
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 config_demo
+.PHONY : config_demo
 
 # fast build rule for target.
-mcp_weather_server/fast:
-	$(MAKE) $(MAKESILENT) -f src/CMakeFiles/mcp_weather_server.dir/build.make src/CMakeFiles/mcp_weather_server.dir/build
-.PHONY : mcp_weather_server/fast
+config_demo/fast:
+	$(MAKE) $(MAKESILENT) -f examples/CMakeFiles/config_demo.dir/build.make examples/CMakeFiles/config_demo.dir/build
+.PHONY : config_demo/fast
 
 #=============================================================================
-# Target rules for targets named weather_client
+# Target rules for targets named test_logger
 
 # Build rule for target.
-weather_client: cmake_check_build_system
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 weather_client
-.PHONY : weather_client
+test_logger: cmake_check_build_system
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 test_logger
+.PHONY : test_logger
 
 # fast build rule for target.
-weather_client/fast:
-	$(MAKE) $(MAKESILENT) -f examples/CMakeFiles/weather_client.dir/build.make examples/CMakeFiles/weather_client.dir/build
-.PHONY : weather_client/fast
+test_logger/fast:
+	$(MAKE) $(MAKESILENT) -f tests/CMakeFiles/test_logger.dir/build.make tests/CMakeFiles/test_logger.dir/build
+.PHONY : test_logger/fast
 
 #=============================================================================
-# Target rules for targets named simple_client
+# Target rules for targets named test_config
 
 # Build rule for target.
-simple_client: cmake_check_build_system
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 simple_client
-.PHONY : simple_client
+test_config: cmake_check_build_system
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 test_config
+.PHONY : test_config
 
 # fast build rule for target.
-simple_client/fast:
-	$(MAKE) $(MAKESILENT) -f examples/CMakeFiles/simple_client.dir/build.make examples/CMakeFiles/simple_client.dir/build
-.PHONY : simple_client/fast
-
-#=============================================================================
-# Target rules for targets named logger_example
-
-# Build rule for target.
-logger_example: cmake_check_build_system
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 logger_example
-.PHONY : logger_example
-
-# fast build rule for target.
-logger_example/fast:
-	$(MAKE) $(MAKESILENT) -f examples/CMakeFiles/logger_example.dir/build.make examples/CMakeFiles/logger_example.dir/build
-.PHONY : logger_example/fast
-
-#=============================================================================
-# Target rules for targets named test_json_rpc
-
-# Build rule for target.
-test_json_rpc: cmake_check_build_system
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 test_json_rpc
-.PHONY : test_json_rpc
-
-# fast build rule for target.
-test_json_rpc/fast:
-	$(MAKE) $(MAKESILENT) -f tests/CMakeFiles/test_json_rpc.dir/build.make tests/CMakeFiles/test_json_rpc.dir/build
-.PHONY : test_json_rpc/fast
-
-#=============================================================================
-# Target rules for targets named test_mcp_client
-
-# Build rule for target.
-test_mcp_client: cmake_check_build_system
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 test_mcp_client
-.PHONY : test_mcp_client
-
-# fast build rule for target.
-test_mcp_client/fast:
-	$(MAKE) $(MAKESILENT) -f tests/CMakeFiles/test_mcp_client.dir/build.make tests/CMakeFiles/test_mcp_client.dir/build
-.PHONY : test_mcp_client/fast
-
-#=============================================================================
-# Target rules for targets named test_example
-
-# Build rule for target.
-test_example: cmake_check_build_system
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 test_example
-.PHONY : test_example
-
-# fast build rule for target.
-test_example/fast:
-	$(MAKE) $(MAKESILENT) -f tests/CMakeFiles/test_example.dir/build.make tests/CMakeFiles/test_example.dir/build
-.PHONY : test_example/fast
+test_config/fast:
+	$(MAKE) $(MAKESILENT) -f tests/CMakeFiles/test_config.dir/build.make tests/CMakeFiles/test_config.dir/build
+.PHONY : test_config/fast
 
 # Help Target
 help:
@@ -252,15 +200,11 @@ help:
 	@echo "... edit_cache"
 	@echo "... rebuild_cache"
 	@echo "... test"
-	@echo "... logger_example"
-	@echo "... mcp_client"
+	@echo "... config_demo"
 	@echo "... mcp_lib"
-	@echo "... mcp_weather_server"
-	@echo "... simple_client"
-	@echo "... test_example"
-	@echo "... test_json_rpc"
-	@echo "... test_mcp_client"
-	@echo "... weather_client"
+	@echo "... mcp_server"
+	@echo "... test_config"
+	@echo "... test_logger"
 .PHONY : help
 
 

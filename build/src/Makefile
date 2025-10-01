@@ -141,104 +141,42 @@ mcp_lib/fast:
 .PHONY : mcp_lib/fast
 
 # Convenience name for target.
-src/CMakeFiles/mcp_client.dir/rule:
-	cd /usr/team_project/mcp-tutorial/build && $(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 src/CMakeFiles/mcp_client.dir/rule
-.PHONY : src/CMakeFiles/mcp_client.dir/rule
+src/CMakeFiles/mcp_server.dir/rule:
+	cd /usr/team_project/mcp-tutorial/build && $(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 src/CMakeFiles/mcp_server.dir/rule
+.PHONY : src/CMakeFiles/mcp_server.dir/rule
 
 # Convenience name for target.
-mcp_client: src/CMakeFiles/mcp_client.dir/rule
-.PHONY : mcp_client
+mcp_server: src/CMakeFiles/mcp_server.dir/rule
+.PHONY : mcp_server
 
 # fast build rule for target.
-mcp_client/fast:
-	cd /usr/team_project/mcp-tutorial/build && $(MAKE) $(MAKESILENT) -f src/CMakeFiles/mcp_client.dir/build.make src/CMakeFiles/mcp_client.dir/build
-.PHONY : mcp_client/fast
+mcp_server/fast:
+	cd /usr/team_project/mcp-tutorial/build && $(MAKE) $(MAKESILENT) -f src/CMakeFiles/mcp_server.dir/build.make src/CMakeFiles/mcp_server.dir/build
+.PHONY : mcp_server/fast
 
-# Convenience name for target.
-src/CMakeFiles/mcp_weather_server.dir/rule:
-	cd /usr/team_project/mcp-tutorial/build && $(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 src/CMakeFiles/mcp_weather_server.dir/rule
-.PHONY : src/CMakeFiles/mcp_weather_server.dir/rule
-
-# Convenience name for target.
-mcp_weather_server: src/CMakeFiles/mcp_weather_server.dir/rule
-.PHONY : mcp_weather_server
-
-# fast build rule for target.
-mcp_weather_server/fast:
-	cd /usr/team_project/mcp-tutorial/build && $(MAKE) $(MAKESILENT) -f src/CMakeFiles/mcp_weather_server.dir/build.make src/CMakeFiles/mcp_weather_server.dir/build
-.PHONY : mcp_weather_server/fast
-
-lib/http_transport.o: lib/http_transport.cpp.o
-.PHONY : lib/http_transport.o
+lib/config.o: lib/config.cpp.o
+.PHONY : lib/config.o
 
 # target to build an object file
-lib/http_transport.cpp.o:
-	cd /usr/team_project/mcp-tutorial/build && $(MAKE) $(MAKESILENT) -f src/CMakeFiles/mcp_lib.dir/build.make src/CMakeFiles/mcp_lib.dir/lib/http_transport.cpp.o
-.PHONY : lib/http_transport.cpp.o
+lib/config.cpp.o:
+	cd /usr/team_project/mcp-tutorial/build && $(MAKE) $(MAKESILENT) -f src/CMakeFiles/mcp_lib.dir/build.make src/CMakeFiles/mcp_lib.dir/lib/config.cpp.o
+.PHONY : lib/config.cpp.o
 
-lib/http_transport.i: lib/http_transport.cpp.i
-.PHONY : lib/http_transport.i
-
-# target to preprocess a source file
-lib/http_transport.cpp.i:
-	cd /usr/team_project/mcp-tutorial/build && $(MAKE) $(MAKESILENT) -f src/CMakeFiles/mcp_lib.dir/build.make src/CMakeFiles/mcp_lib.dir/lib/http_transport.cpp.i
-.PHONY : lib/http_transport.cpp.i
-
-lib/http_transport.s: lib/http_transport.cpp.s
-.PHONY : lib/http_transport.s
-
-# target to generate assembly for a file
-lib/http_transport.cpp.s:
-	cd /usr/team_project/mcp-tutorial/build && $(MAKE) $(MAKESILENT) -f src/CMakeFiles/mcp_lib.dir/build.make src/CMakeFiles/mcp_lib.dir/lib/http_transport.cpp.s
-.PHONY : lib/http_transport.cpp.s
-
-lib/json_rpc.o: lib/json_rpc.cpp.o
-.PHONY : lib/json_rpc.o
-
-# target to build an object file
-lib/json_rpc.cpp.o:
-	cd /usr/team_project/mcp-tutorial/build && $(MAKE) $(MAKESILENT) -f src/CMakeFiles/mcp_lib.dir/build.make src/CMakeFiles/mcp_lib.dir/lib/json_rpc.cpp.o
-.PHONY : lib/json_rpc.cpp.o
-
-lib/json_rpc.i: lib/json_rpc.cpp.i
-.PHONY : lib/json_rpc.i
+lib/config.i: lib/config.cpp.i
+.PHONY : lib/config.i
 
 # target to preprocess a source file
-lib/json_rpc.cpp.i:
-	cd /usr/team_project/mcp-tutorial/build && $(MAKE) $(MAKESILENT) -f src/CMakeFiles/mcp_lib.dir/build.make src/CMakeFiles/mcp_lib.dir/lib/json_rpc.cpp.i
-.PHONY : lib/json_rpc.cpp.i
+lib/config.cpp.i:
+	cd /usr/team_project/mcp-tutorial/build && $(MAKE) $(MAKESILENT) -f src/CMakeFiles/mcp_lib.dir/build.make src/CMakeFiles/mcp_lib.dir/lib/config.cpp.i
+.PHONY : lib/config.cpp.i
 
-lib/json_rpc.s: lib/json_rpc.cpp.s
-.PHONY : lib/json_rpc.s
-
-# target to generate assembly for a file
-lib/json_rpc.cpp.s:
-	cd /usr/team_project/mcp-tutorial/build && $(MAKE) $(MAKESILENT) -f src/CMakeFiles/mcp_lib.dir/build.make src/CMakeFiles/mcp_lib.dir/lib/json_rpc.cpp.s
-.PHONY : lib/json_rpc.cpp.s
-
-lib/mcp_protocol.o: lib/mcp_protocol.cpp.o
-.PHONY : lib/mcp_protocol.o
-
-# target to build an object file
-lib/mcp_protocol.cpp.o:
-	cd /usr/team_project/mcp-tutorial/build && $(MAKE) $(MAKESILENT) -f src/CMakeFiles/mcp_lib.dir/build.make src/CMakeFiles/mcp_lib.dir/lib/mcp_protocol.cpp.o
-.PHONY : lib/mcp_protocol.cpp.o
-
-lib/mcp_protocol.i: lib/mcp_protocol.cpp.i
-.PHONY : lib/mcp_protocol.i
-
-# target to preprocess a source file
-lib/mcp_protocol.cpp.i:
-	cd /usr/team_project/mcp-tutorial/build && $(MAKE) $(MAKESILENT) -f src/CMakeFiles/mcp_lib.dir/build.make src/CMakeFiles/mcp_lib.dir/lib/mcp_protocol.cpp.i
-.PHONY : lib/mcp_protocol.cpp.i
-
-lib/mcp_protocol.s: lib/mcp_protocol.cpp.s
-.PHONY : lib/mcp_protocol.s
+lib/config.s: lib/config.cpp.s
+.PHONY : lib/config.s
 
 # target to generate assembly for a file
-lib/mcp_protocol.cpp.s:
-	cd /usr/team_project/mcp-tutorial/build && $(MAKE) $(MAKESILENT) -f src/CMakeFiles/mcp_lib.dir/build.make src/CMakeFiles/mcp_lib.dir/lib/mcp_protocol.cpp.s
-.PHONY : lib/mcp_protocol.cpp.s
+lib/config.cpp.s:
+	cd /usr/team_project/mcp-tutorial/build && $(MAKE) $(MAKESILENT) -f src/CMakeFiles/mcp_lib.dir/build.make src/CMakeFiles/mcp_lib.dir/lib/config.cpp.s
+.PHONY : lib/config.cpp.s
 
 logger/logger.o: logger/logger.cpp.o
 .PHONY : logger/logger.o
@@ -264,101 +202,29 @@ logger/logger.cpp.s:
 	cd /usr/team_project/mcp-tutorial/build && $(MAKE) $(MAKESILENT) -f src/CMakeFiles/mcp_lib.dir/build.make src/CMakeFiles/mcp_lib.dir/logger/logger.cpp.s
 .PHONY : logger/logger.cpp.s
 
-mcp_client/client.o: mcp_client/client.cpp.o
-.PHONY : mcp_client/client.o
+main.o: main.cpp.o
+.PHONY : main.o
 
 # target to build an object file
-mcp_client/client.cpp.o:
-	cd /usr/team_project/mcp-tutorial/build && $(MAKE) $(MAKESILENT) -f src/CMakeFiles/mcp_client.dir/build.make src/CMakeFiles/mcp_client.dir/mcp_client/client.cpp.o
-.PHONY : mcp_client/client.cpp.o
+main.cpp.o:
+	cd /usr/team_project/mcp-tutorial/build && $(MAKE) $(MAKESILENT) -f src/CMakeFiles/mcp_server.dir/build.make src/CMakeFiles/mcp_server.dir/main.cpp.o
+.PHONY : main.cpp.o
 
-mcp_client/client.i: mcp_client/client.cpp.i
-.PHONY : mcp_client/client.i
-
-# target to preprocess a source file
-mcp_client/client.cpp.i:
-	cd /usr/team_project/mcp-tutorial/build && $(MAKE) $(MAKESILENT) -f src/CMakeFiles/mcp_client.dir/build.make src/CMakeFiles/mcp_client.dir/mcp_client/client.cpp.i
-.PHONY : mcp_client/client.cpp.i
-
-mcp_client/client.s: mcp_client/client.cpp.s
-.PHONY : mcp_client/client.s
-
-# target to generate assembly for a file
-mcp_client/client.cpp.s:
-	cd /usr/team_project/mcp-tutorial/build && $(MAKE) $(MAKESILENT) -f src/CMakeFiles/mcp_client.dir/build.make src/CMakeFiles/mcp_client.dir/mcp_client/client.cpp.s
-.PHONY : mcp_client/client.cpp.s
-
-mcp_server/main.o: mcp_server/main.cpp.o
-.PHONY : mcp_server/main.o
-
-# target to build an object file
-mcp_server/main.cpp.o:
-	cd /usr/team_project/mcp-tutorial/build && $(MAKE) $(MAKESILENT) -f src/CMakeFiles/mcp_weather_server.dir/build.make src/CMakeFiles/mcp_weather_server.dir/mcp_server/main.cpp.o
-.PHONY : mcp_server/main.cpp.o
-
-mcp_server/main.i: mcp_server/main.cpp.i
-.PHONY : mcp_server/main.i
+main.i: main.cpp.i
+.PHONY : main.i
 
 # target to preprocess a source file
-mcp_server/main.cpp.i:
-	cd /usr/team_project/mcp-tutorial/build && $(MAKE) $(MAKESILENT) -f src/CMakeFiles/mcp_weather_server.dir/build.make src/CMakeFiles/mcp_weather_server.dir/mcp_server/main.cpp.i
-.PHONY : mcp_server/main.cpp.i
+main.cpp.i:
+	cd /usr/team_project/mcp-tutorial/build && $(MAKE) $(MAKESILENT) -f src/CMakeFiles/mcp_server.dir/build.make src/CMakeFiles/mcp_server.dir/main.cpp.i
+.PHONY : main.cpp.i
 
-mcp_server/main.s: mcp_server/main.cpp.s
-.PHONY : mcp_server/main.s
-
-# target to generate assembly for a file
-mcp_server/main.cpp.s:
-	cd /usr/team_project/mcp-tutorial/build && $(MAKE) $(MAKESILENT) -f src/CMakeFiles/mcp_weather_server.dir/build.make src/CMakeFiles/mcp_weather_server.dir/mcp_server/main.cpp.s
-.PHONY : mcp_server/main.cpp.s
-
-mcp_server/weather_api.o: mcp_server/weather_api.cpp.o
-.PHONY : mcp_server/weather_api.o
-
-# target to build an object file
-mcp_server/weather_api.cpp.o:
-	cd /usr/team_project/mcp-tutorial/build && $(MAKE) $(MAKESILENT) -f src/CMakeFiles/mcp_weather_server.dir/build.make src/CMakeFiles/mcp_weather_server.dir/mcp_server/weather_api.cpp.o
-.PHONY : mcp_server/weather_api.cpp.o
-
-mcp_server/weather_api.i: mcp_server/weather_api.cpp.i
-.PHONY : mcp_server/weather_api.i
-
-# target to preprocess a source file
-mcp_server/weather_api.cpp.i:
-	cd /usr/team_project/mcp-tutorial/build && $(MAKE) $(MAKESILENT) -f src/CMakeFiles/mcp_weather_server.dir/build.make src/CMakeFiles/mcp_weather_server.dir/mcp_server/weather_api.cpp.i
-.PHONY : mcp_server/weather_api.cpp.i
-
-mcp_server/weather_api.s: mcp_server/weather_api.cpp.s
-.PHONY : mcp_server/weather_api.s
+main.s: main.cpp.s
+.PHONY : main.s
 
 # target to generate assembly for a file
-mcp_server/weather_api.cpp.s:
-	cd /usr/team_project/mcp-tutorial/build && $(MAKE) $(MAKESILENT) -f src/CMakeFiles/mcp_weather_server.dir/build.make src/CMakeFiles/mcp_weather_server.dir/mcp_server/weather_api.cpp.s
-.PHONY : mcp_server/weather_api.cpp.s
-
-mcp_server/weather_server.o: mcp_server/weather_server.cpp.o
-.PHONY : mcp_server/weather_server.o
-
-# target to build an object file
-mcp_server/weather_server.cpp.o:
-	cd /usr/team_project/mcp-tutorial/build && $(MAKE) $(MAKESILENT) -f src/CMakeFiles/mcp_weather_server.dir/build.make src/CMakeFiles/mcp_weather_server.dir/mcp_server/weather_server.cpp.o
-.PHONY : mcp_server/weather_server.cpp.o
-
-mcp_server/weather_server.i: mcp_server/weather_server.cpp.i
-.PHONY : mcp_server/weather_server.i
-
-# target to preprocess a source file
-mcp_server/weather_server.cpp.i:
-	cd /usr/team_project/mcp-tutorial/build && $(MAKE) $(MAKESILENT) -f src/CMakeFiles/mcp_weather_server.dir/build.make src/CMakeFiles/mcp_weather_server.dir/mcp_server/weather_server.cpp.i
-.PHONY : mcp_server/weather_server.cpp.i
-
-mcp_server/weather_server.s: mcp_server/weather_server.cpp.s
-.PHONY : mcp_server/weather_server.s
-
-# target to generate assembly for a file
-mcp_server/weather_server.cpp.s:
-	cd /usr/team_project/mcp-tutorial/build && $(MAKE) $(MAKESILENT) -f src/CMakeFiles/mcp_weather_server.dir/build.make src/CMakeFiles/mcp_weather_server.dir/mcp_server/weather_server.cpp.s
-.PHONY : mcp_server/weather_server.cpp.s
+main.cpp.s:
+	cd /usr/team_project/mcp-tutorial/build && $(MAKE) $(MAKESILENT) -f src/CMakeFiles/mcp_server.dir/build.make src/CMakeFiles/mcp_server.dir/main.cpp.s
+.PHONY : main.cpp.s
 
 # Help Target
 help:
@@ -369,33 +235,17 @@ help:
 	@echo "... edit_cache"
 	@echo "... rebuild_cache"
 	@echo "... test"
-	@echo "... mcp_client"
 	@echo "... mcp_lib"
-	@echo "... mcp_weather_server"
-	@echo "... lib/http_transport.o"
-	@echo "... lib/http_transport.i"
-	@echo "... lib/http_transport.s"
-	@echo "... lib/json_rpc.o"
-	@echo "... lib/json_rpc.i"
-	@echo "... lib/json_rpc.s"
-	@echo "... lib/mcp_protocol.o"
-	@echo "... lib/mcp_protocol.i"
-	@echo "... lib/mcp_protocol.s"
+	@echo "... mcp_server"
+	@echo "... lib/config.o"
+	@echo "... lib/config.i"
+	@echo "... lib/config.s"
 	@echo "... logger/logger.o"
 	@echo "... logger/logger.i"
 	@echo "... logger/logger.s"
-	@echo "... mcp_client/client.o"
-	@echo "... mcp_client/client.i"
-	@echo "... mcp_client/client.s"
-	@echo "... mcp_server/main.o"
-	@echo "... mcp_server/main.i"
-	@echo "... mcp_server/main.s"
-	@echo "... mcp_server/weather_api.o"
-	@echo "... mcp_server/weather_api.i"
-	@echo "... mcp_server/weather_api.s"
-	@echo "... mcp_server/weather_server.o"
-	@echo "... mcp_server/weather_server.i"
-	@echo "... mcp_server/weather_server.s"
+	@echo "... main.o"
+	@echo "... main.i"
+	@echo "... main.s"
 .PHONY : help
 
 

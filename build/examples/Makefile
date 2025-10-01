@@ -127,118 +127,42 @@ depend:
 .PHONY : depend
 
 # Convenience name for target.
-examples/CMakeFiles/weather_client.dir/rule:
-	cd /usr/team_project/mcp-tutorial/build && $(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 examples/CMakeFiles/weather_client.dir/rule
-.PHONY : examples/CMakeFiles/weather_client.dir/rule
+examples/CMakeFiles/config_demo.dir/rule:
+	cd /usr/team_project/mcp-tutorial/build && $(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 examples/CMakeFiles/config_demo.dir/rule
+.PHONY : examples/CMakeFiles/config_demo.dir/rule
 
 # Convenience name for target.
-weather_client: examples/CMakeFiles/weather_client.dir/rule
-.PHONY : weather_client
+config_demo: examples/CMakeFiles/config_demo.dir/rule
+.PHONY : config_demo
 
 # fast build rule for target.
-weather_client/fast:
-	cd /usr/team_project/mcp-tutorial/build && $(MAKE) $(MAKESILENT) -f examples/CMakeFiles/weather_client.dir/build.make examples/CMakeFiles/weather_client.dir/build
-.PHONY : weather_client/fast
+config_demo/fast:
+	cd /usr/team_project/mcp-tutorial/build && $(MAKE) $(MAKESILENT) -f examples/CMakeFiles/config_demo.dir/build.make examples/CMakeFiles/config_demo.dir/build
+.PHONY : config_demo/fast
 
-# Convenience name for target.
-examples/CMakeFiles/simple_client.dir/rule:
-	cd /usr/team_project/mcp-tutorial/build && $(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 examples/CMakeFiles/simple_client.dir/rule
-.PHONY : examples/CMakeFiles/simple_client.dir/rule
-
-# Convenience name for target.
-simple_client: examples/CMakeFiles/simple_client.dir/rule
-.PHONY : simple_client
-
-# fast build rule for target.
-simple_client/fast:
-	cd /usr/team_project/mcp-tutorial/build && $(MAKE) $(MAKESILENT) -f examples/CMakeFiles/simple_client.dir/build.make examples/CMakeFiles/simple_client.dir/build
-.PHONY : simple_client/fast
-
-# Convenience name for target.
-examples/CMakeFiles/logger_example.dir/rule:
-	cd /usr/team_project/mcp-tutorial/build && $(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 examples/CMakeFiles/logger_example.dir/rule
-.PHONY : examples/CMakeFiles/logger_example.dir/rule
-
-# Convenience name for target.
-logger_example: examples/CMakeFiles/logger_example.dir/rule
-.PHONY : logger_example
-
-# fast build rule for target.
-logger_example/fast:
-	cd /usr/team_project/mcp-tutorial/build && $(MAKE) $(MAKESILENT) -f examples/CMakeFiles/logger_example.dir/build.make examples/CMakeFiles/logger_example.dir/build
-.PHONY : logger_example/fast
-
-logger_example.o: logger_example.cpp.o
-.PHONY : logger_example.o
+config_demo.o: config_demo.cpp.o
+.PHONY : config_demo.o
 
 # target to build an object file
-logger_example.cpp.o:
-	cd /usr/team_project/mcp-tutorial/build && $(MAKE) $(MAKESILENT) -f examples/CMakeFiles/logger_example.dir/build.make examples/CMakeFiles/logger_example.dir/logger_example.cpp.o
-.PHONY : logger_example.cpp.o
+config_demo.cpp.o:
+	cd /usr/team_project/mcp-tutorial/build && $(MAKE) $(MAKESILENT) -f examples/CMakeFiles/config_demo.dir/build.make examples/CMakeFiles/config_demo.dir/config_demo.cpp.o
+.PHONY : config_demo.cpp.o
 
-logger_example.i: logger_example.cpp.i
-.PHONY : logger_example.i
-
-# target to preprocess a source file
-logger_example.cpp.i:
-	cd /usr/team_project/mcp-tutorial/build && $(MAKE) $(MAKESILENT) -f examples/CMakeFiles/logger_example.dir/build.make examples/CMakeFiles/logger_example.dir/logger_example.cpp.i
-.PHONY : logger_example.cpp.i
-
-logger_example.s: logger_example.cpp.s
-.PHONY : logger_example.s
-
-# target to generate assembly for a file
-logger_example.cpp.s:
-	cd /usr/team_project/mcp-tutorial/build && $(MAKE) $(MAKESILENT) -f examples/CMakeFiles/logger_example.dir/build.make examples/CMakeFiles/logger_example.dir/logger_example.cpp.s
-.PHONY : logger_example.cpp.s
-
-simple_client.o: simple_client.cpp.o
-.PHONY : simple_client.o
-
-# target to build an object file
-simple_client.cpp.o:
-	cd /usr/team_project/mcp-tutorial/build && $(MAKE) $(MAKESILENT) -f examples/CMakeFiles/simple_client.dir/build.make examples/CMakeFiles/simple_client.dir/simple_client.cpp.o
-.PHONY : simple_client.cpp.o
-
-simple_client.i: simple_client.cpp.i
-.PHONY : simple_client.i
+config_demo.i: config_demo.cpp.i
+.PHONY : config_demo.i
 
 # target to preprocess a source file
-simple_client.cpp.i:
-	cd /usr/team_project/mcp-tutorial/build && $(MAKE) $(MAKESILENT) -f examples/CMakeFiles/simple_client.dir/build.make examples/CMakeFiles/simple_client.dir/simple_client.cpp.i
-.PHONY : simple_client.cpp.i
+config_demo.cpp.i:
+	cd /usr/team_project/mcp-tutorial/build && $(MAKE) $(MAKESILENT) -f examples/CMakeFiles/config_demo.dir/build.make examples/CMakeFiles/config_demo.dir/config_demo.cpp.i
+.PHONY : config_demo.cpp.i
 
-simple_client.s: simple_client.cpp.s
-.PHONY : simple_client.s
-
-# target to generate assembly for a file
-simple_client.cpp.s:
-	cd /usr/team_project/mcp-tutorial/build && $(MAKE) $(MAKESILENT) -f examples/CMakeFiles/simple_client.dir/build.make examples/CMakeFiles/simple_client.dir/simple_client.cpp.s
-.PHONY : simple_client.cpp.s
-
-weather_client.o: weather_client.cpp.o
-.PHONY : weather_client.o
-
-# target to build an object file
-weather_client.cpp.o:
-	cd /usr/team_project/mcp-tutorial/build && $(MAKE) $(MAKESILENT) -f examples/CMakeFiles/weather_client.dir/build.make examples/CMakeFiles/weather_client.dir/weather_client.cpp.o
-.PHONY : weather_client.cpp.o
-
-weather_client.i: weather_client.cpp.i
-.PHONY : weather_client.i
-
-# target to preprocess a source file
-weather_client.cpp.i:
-	cd /usr/team_project/mcp-tutorial/build && $(MAKE) $(MAKESILENT) -f examples/CMakeFiles/weather_client.dir/build.make examples/CMakeFiles/weather_client.dir/weather_client.cpp.i
-.PHONY : weather_client.cpp.i
-
-weather_client.s: weather_client.cpp.s
-.PHONY : weather_client.s
+config_demo.s: config_demo.cpp.s
+.PHONY : config_demo.s
 
 # target to generate assembly for a file
-weather_client.cpp.s:
-	cd /usr/team_project/mcp-tutorial/build && $(MAKE) $(MAKESILENT) -f examples/CMakeFiles/weather_client.dir/build.make examples/CMakeFiles/weather_client.dir/weather_client.cpp.s
-.PHONY : weather_client.cpp.s
+config_demo.cpp.s:
+	cd /usr/team_project/mcp-tutorial/build && $(MAKE) $(MAKESILENT) -f examples/CMakeFiles/config_demo.dir/build.make examples/CMakeFiles/config_demo.dir/config_demo.cpp.s
+.PHONY : config_demo.cpp.s
 
 # Help Target
 help:
@@ -249,18 +173,10 @@ help:
 	@echo "... edit_cache"
 	@echo "... rebuild_cache"
 	@echo "... test"
-	@echo "... logger_example"
-	@echo "... simple_client"
-	@echo "... weather_client"
-	@echo "... logger_example.o"
-	@echo "... logger_example.i"
-	@echo "... logger_example.s"
-	@echo "... simple_client.o"
-	@echo "... simple_client.i"
-	@echo "... simple_client.s"
-	@echo "... weather_client.o"
-	@echo "... weather_client.i"
-	@echo "... weather_client.s"
+	@echo "... config_demo"
+	@echo "... config_demo.o"
+	@echo "... config_demo.i"
+	@echo "... config_demo.s"
 .PHONY : help
 
 

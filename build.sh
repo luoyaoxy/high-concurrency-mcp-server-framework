@@ -2,10 +2,21 @@
 
 # MCP 教程构建脚本
 # 用于学习目的 - 仅限本地开发环境
+#
+# Usage:
+#   ./build.sh          # Normal build
+#   ./build.sh asan     # Build with AddressSanitizer (memory leak detection)
 
 set -e
 
-echo "🚀 正在构建 MCP 教程项目..."
+# Check if ASAN mode is requested
+BUILD_MODE="normal"
+if [ "$1" = "asan" ]; then
+    BUILD_MODE="asan"
+    echo "🔍 正在使用 ASAN 模式构建项目..."
+else
+    echo "🚀 正在构建 MCP 教程项目..."
+fi
 
 # 创建构建目录
 if [ ! -d "build" ]; then
@@ -29,10 +40,22 @@ fi
 
 # 使用 CMake 配置项目（使用 vcpkg 工具链）
 echo "⚙️  正在使用 CMake 配置项目..."
-if [ -n "$VCPKG_TOOLCHAIN" ]; then
-    cmake .. -DCMAKE_BUILD_TYPE=Release -DCMAKE_TOOLCHAIN_FILE="$VCPKG_TOOLCHAIN"
+
+# Build with or without ASAN
+if [ "$BUILD_MODE" = "asan" ]; then
+    # ASAN mode: use Debug build with ASAN enabled
+    if [ -n "$VCPKG_TOOLCHAIN" ]; then
+        cmake .. -DCMAKE_BUILD_TYPE=Debug -DENABLE_ASAN=ON -DCMAKE_TOOLCHAIN_FILE="$VCPKG_TOOLCHAIN"
+    else
+        cmake .. -DCMAKE_BUILD_TYPE=Debug -DENABLE_ASAN=ON
+    fi
 else
-    cmake .. -DCMAKE_BUILD_TYPE=Release
+    # Normal mode: Release build
+    if [ -n "$VCPKG_TOOLCHAIN" ]; then
+        cmake .. -DCMAKE_BUILD_TYPE=Release -DCMAKE_TOOLCHAIN_FILE="$VCPKG_TOOLCHAIN"
+    else
+        cmake .. -DCMAKE_BUILD_TYPE=Release
+    fi
 fi
 
 # 构建项目
@@ -50,14 +73,3 @@ make -j$JOBS
 
 echo ""
 echo "🎉 构建完成！"
-echo ""
-echo "📍 启动服务器："
-echo "   cd build && ./src/mcp_weather_server --api-key mock"
-echo ""
-echo "📍 运行客户端示例（在新终端中）："
-echo "   cd build && ./examples/weather_client --city Beijing"
-echo "   cd build && ./examples/simple_client"
-echo ""
-echo "📍 运行测试："
-echo "   cd build && ./tests/test_json_rpc"
-echo "   cd build && ./tests/test_mcp_client"

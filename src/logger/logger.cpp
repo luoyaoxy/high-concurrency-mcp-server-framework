@@ -25,7 +25,7 @@ void Logger::init(const std::string& logger_name,
     try {
         std::vector<spdlog::sink_ptr> sinks;
 
-        // 添加控制台输出 sink
+        // Add console output sink
         if (console_output) {
             auto console_sink = std::make_shared<spdlog::sinks::stdout_color_sink_mt>();
             console_sink->set_level(spdlog::level::trace);
@@ -33,12 +33,12 @@ void Logger::init(const std::string& logger_name,
             sinks.push_back(console_sink);
         }
 
-        // 添加文件输出 sink (如果指定了文件路径)
+        // Add file output sink (if file path is specified)
         if (!log_file_path.empty()) {
-            // 创建日志文件目录 (如果不存在)
+            // Create log directory if it doesn't exist
             std::filesystem::path log_path(log_file_path);
             std::filesystem::path log_dir = log_path.parent_path();
-            
+
             if (!log_dir.empty() && !std::filesystem::exists(log_dir)) {
                 std::filesystem::create_directories(log_dir);
             }
@@ -50,24 +50,24 @@ void Logger::init(const std::string& logger_name,
             sinks.push_back(file_sink);
         }
 
-        // 创建 logger
+        // Create logger
         m_logger = std::make_shared<spdlog::logger>(logger_name, sinks.begin(), sinks.end());
-        m_logger->set_level(spdlog::level::info);  // 默认级别
-        m_logger->flush_on(spdlog::level::warn);   // WARN 及以上级别立即刷新
+        m_logger->set_level(spdlog::level::info);  // Default level
+        m_logger->flush_on(spdlog::level::warn);   // Auto flush on WARN and above
 
-        // 注册为默认 logger
+        // Register as default logger
         spdlog::register_logger(m_logger);
         spdlog::set_default_logger(m_logger);
 
         m_initialized = true;
-        
-        m_logger->info("Logger 初始化成功 - name: {}, file: {}, console: {}", 
-                      logger_name, 
+
+        m_logger->info("Logger initialized successfully - name: {}, file: {}, console: {}",
+                      logger_name,
                       log_file_path.empty() ? "disabled" : log_file_path,
                       console_output ? "enabled" : "disabled");
     }
     catch (const spdlog::spdlog_ex& ex) {
-        std::cerr << "Logger 初始化失败: " << ex.what() << std::endl;
+        std::cerr << "Logger initialization failed: " << ex.what() << std::endl;
         throw;
     }
 }
@@ -75,13 +75,13 @@ void Logger::init(const std::string& logger_name,
 void Logger::setLevel(spdlog::level::level_enum level) {
     if (m_logger) {
         m_logger->set_level(level);
-        m_logger->info("Logger 级别设置为: {}", spdlog::level::to_string_view(level));
+        m_logger->info("Logger level set to: {}", spdlog::level::to_string_view(level));
     }
 }
 
 std::shared_ptr<spdlog::logger> Logger::getLogger() {
     if (!m_initialized) {
-        // 如果没有初始化，使用默认配置自动初始化
+        // Auto-initialize with default config if not initialized
         init();
     }
     return m_logger;
@@ -95,7 +95,7 @@ void Logger::flush() {
 
 void Logger::shutdown() {
     if (m_logger) {
-        m_logger->info("Logger 正在关闭...");
+        m_logger->info("Logger shutting down...");
         m_logger->flush();
         spdlog::shutdown();
         m_logger.reset();

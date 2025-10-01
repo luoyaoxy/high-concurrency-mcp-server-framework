@@ -4,7 +4,7 @@
 # compile CXX with /usr/bin/c++
 CXX_DEFINES = -DSPDLOG_COMPILED_LIB -DSPDLOG_FMT_EXTERNAL
 
-CXX_INCLUDES = -I/usr/team_project/mcp-tutorial/src/include -I/usr/team_project/mcp-tutorial/src -isystem /root/.vcpkg/installed/x64-linux/include
+CXX_INCLUDES = -I/usr/team_project/mcp-tutorial/src/include -I/usr/team_project/mcp-tutorial/src -isystem /usr/team_project/mcp-tutorial/build/vcpkg_installed/x64-linux/include
 
 CXX_FLAGS = -O3 -DNDEBUG -std=gnu++17
 

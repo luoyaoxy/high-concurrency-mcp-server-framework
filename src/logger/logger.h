@@ -112,7 +112,7 @@ private:
 #define MCP_LOG_TRACE(...) \
     do { \
         auto logger = mcp::logger::Logger::getInstance().getLogger(); \
-        if (logger) logger->trace(__VA_ARGS__); \
+        if (logger) logger->trace("[{}:{}] " __VA_ARGS__, __FILE__, __LINE__); \
     } while(0)
 
 /**
@@ -122,7 +122,7 @@ private:
 #define MCP_LOG_DEBUG(...) \
     do { \
         auto logger = mcp::logger::Logger::getInstance().getLogger(); \
-        if (logger) logger->debug(__VA_ARGS__); \
+        if (logger) logger->debug("[{}:{}] " __VA_ARGS__, __FILE__, __LINE__); \
     } while(0)
 
 /**
@@ -132,7 +132,7 @@ private:
 #define MCP_LOG_INFO(...) \
     do { \
         auto logger = mcp::logger::Logger::getInstance().getLogger(); \
-        if (logger) logger->info(__VA_ARGS__); \
+        if (logger) logger->info("[{}:{}] " __VA_ARGS__, __FILE__, __LINE__); \
     } while(0)
 
 /**
@@ -142,7 +142,7 @@ private:
 #define MCP_LOG_WARN(...) \
     do { \
         auto logger = mcp::logger::Logger::getInstance().getLogger(); \
-        if (logger) logger->warn(__VA_ARGS__); \
+        if (logger) logger->warn("[{}:{}] " __VA_ARGS__, __FILE__, __LINE__); \
     } while(0)
 
 /**
@@ -152,7 +152,7 @@ private:
 #define MCP_LOG_ERROR(...) \
     do { \
         auto logger = mcp::logger::Logger::getInstance().getLogger(); \
-        if (logger) logger->error(__VA_ARGS__); \
+        if (logger) logger->error("[{}:{}] " __VA_ARGS__, __FILE__, __LINE__); \
     } while(0)
 
 /**
@@ -162,7 +162,7 @@ private:
 #define MCP_LOG_CRITICAL(...) \
     do { \
         auto logger = mcp::logger::Logger::getInstance().getLogger(); \
-        if (logger) logger->critical(__VA_ARGS__); \
+        if (logger) logger->critical("[{}:{}] " __VA_ARGS__, __FILE__, __LINE__); \
     } while(0)
 
 // ================================

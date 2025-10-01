@@ -2,9 +2,9 @@ src/CMakeFiles/mcp_lib.dir/logger/logger.cpp.o: \
  /usr/team_project/mcp-tutorial/src/logger/logger.cpp \
  /usr/include/stdc-predef.h \
  /usr/team_project/mcp-tutorial/src/logger/logger.h \
- /root/.vcpkg/installed/x64-linux/include/spdlog/spdlog.h \
- /root/.vcpkg/installed/x64-linux/include/spdlog/common.h \
- /root/.vcpkg/installed/x64-linux/include/spdlog/details/null_mutex.h \
+ /usr/team_project/mcp-tutorial/build/vcpkg_installed/x64-linux/include/spdlog/spdlog.h \
+ /usr/team_project/mcp-tutorial/build/vcpkg_installed/x64-linux/include/spdlog/common.h \
+ /usr/team_project/mcp-tutorial/build/vcpkg_installed/x64-linux/include/spdlog/details/null_mutex.h \
  /usr/include/c++/13/atomic /usr/include/c++/13/bits/atomic_base.h \
  /usr/include/x86_64-linux-gnu/c++/13/bits/c++config.h \
  /usr/include/x86_64-linux-gnu/c++/13/bits/os_defines.h \
@@ -32,7 +32,7 @@ src/CMakeFiles/mcp_lib.dir/logger/logger.cpp.o: \
  /usr/include/c++/13/utility /usr/include/c++/13/bits/stl_relops.h \
  /usr/include/c++/13/bits/stl_pair.h /usr/include/c++/13/bits/utility.h \
  /usr/include/c++/13/initializer_list \
- /root/.vcpkg/installed/x64-linux/include/spdlog/tweakme.h \
+ /usr/team_project/mcp-tutorial/build/vcpkg_installed/x64-linux/include/spdlog/tweakme.h \
  /usr/include/c++/13/chrono /usr/include/c++/13/bits/requires_hosted.h \
  /usr/include/c++/13/bits/chrono.h /usr/include/c++/13/ratio \
  /usr/include/c++/13/cstdint /usr/include/c++/13/limits \
@@ -182,8 +182,8 @@ src/CMakeFiles/mcp_lib.dir/logger/logger.cpp.o: \
  /usr/include/x86_64-linux-gnu/bits/types/error_t.h \
  /usr/include/c++/13/bits/charconv.h \
  /usr/include/c++/13/bits/basic_string.tcc \
- /root/.vcpkg/installed/x64-linux/include/spdlog/fmt/fmt.h \
- /root/.vcpkg/installed/x64-linux/include/fmt/base.h \
+ /usr/team_project/mcp-tutorial/build/vcpkg_installed/x64-linux/include/spdlog/fmt/fmt.h \
+ /usr/team_project/mcp-tutorial/build/vcpkg_installed/x64-linux/include/fmt/base.h \
  /usr/lib/gcc/x86_64-linux-gnu/13/include/limits.h \
  /usr/lib/gcc/x86_64-linux-gnu/13/include/syslimits.h \
  /usr/include/limits.h /usr/include/x86_64-linux-gnu/bits/posix1_lim.h \
@@ -195,8 +195,8 @@ src/CMakeFiles/mcp_lib.dir/logger/logger.cpp.o: \
  /usr/include/strings.h \
  /usr/include/x86_64-linux-gnu/bits/strings_fortified.h \
  /usr/include/x86_64-linux-gnu/bits/string_fortified.h \
- /root/.vcpkg/installed/x64-linux/include/fmt/format.h \
- /root/.vcpkg/installed/x64-linux/include/fmt/base.h \
+ /usr/team_project/mcp-tutorial/build/vcpkg_installed/x64-linux/include/fmt/format.h \
+ /usr/team_project/mcp-tutorial/build/vcpkg_installed/x64-linux/include/fmt/base.h \
  /usr/include/c++/13/cmath /usr/include/math.h \
  /usr/include/x86_64-linux-gnu/bits/math-vector.h \
  /usr/include/x86_64-linux-gnu/bits/libm-simd-decl-stubs.h \
@@ -221,31 +221,31 @@ src/CMakeFiles/mcp_lib.dir/logger/logger.cpp.o: \
  /usr/include/c++/13/tr1/riemann_zeta.tcc /usr/include/c++/13/cstring \
  /usr/include/c++/13/stdexcept /usr/include/c++/13/system_error \
  /usr/include/x86_64-linux-gnu/c++/13/bits/error_constants.h \
- /root/.vcpkg/installed/x64-linux/include/spdlog/details/registry.h \
- /root/.vcpkg/installed/x64-linux/include/spdlog/details/periodic_worker.h \
+ /usr/team_project/mcp-tutorial/build/vcpkg_installed/x64-linux/include/spdlog/details/registry.h \
+ /usr/team_project/mcp-tutorial/build/vcpkg_installed/x64-linux/include/spdlog/details/periodic_worker.h \
  /usr/include/c++/13/condition_variable \
  /usr/include/c++/13/bits/std_mutex.h \
  /usr/include/c++/13/bits/unique_lock.h /usr/include/c++/13/mutex \
  /usr/include/c++/13/thread /usr/include/c++/13/bits/std_thread.h \
  /usr/include/c++/13/bits/this_thread_sleep.h \
- /root/.vcpkg/installed/x64-linux/include/spdlog/details/synchronous_factory.h \
- /root/.vcpkg/installed/x64-linux/include/spdlog/logger.h \
- /root/.vcpkg/installed/x64-linux/include/spdlog/details/backtracer.h \
- /root/.vcpkg/installed/x64-linux/include/spdlog/details/circular_q.h \
+ /usr/team_project/mcp-tutorial/build/vcpkg_installed/x64-linux/include/spdlog/details/synchronous_factory.h \
+ /usr/team_project/mcp-tutorial/build/vcpkg_installed/x64-linux/include/spdlog/logger.h \
+ /usr/team_project/mcp-tutorial/build/vcpkg_installed/x64-linux/include/spdlog/details/backtracer.h \
+ /usr/team_project/mcp-tutorial/build/vcpkg_installed/x64-linux/include/spdlog/details/circular_q.h \
  /usr/include/c++/13/cassert /usr/include/assert.h \
- /root/.vcpkg/installed/x64-linux/include/spdlog/details/log_msg_buffer.h \
- /root/.vcpkg/installed/x64-linux/include/spdlog/details/log_msg.h \
- /root/.vcpkg/installed/x64-linux/include/spdlog/version.h \
- /root/.vcpkg/installed/x64-linux/include/spdlog/sinks/stdout_color_sinks.h \
- /root/.vcpkg/installed/x64-linux/include/spdlog/sinks/ansicolor_sink.h \
- /root/.vcpkg/installed/x64-linux/include/spdlog/details/console_globals.h \
- /root/.vcpkg/installed/x64-linux/include/spdlog/sinks/sink.h \
- /root/.vcpkg/installed/x64-linux/include/spdlog/formatter.h \
- /root/.vcpkg/installed/x64-linux/include/spdlog/sinks/rotating_file_sink.h \
- /root/.vcpkg/installed/x64-linux/include/spdlog/details/file_helper.h \
- /root/.vcpkg/installed/x64-linux/include/spdlog/sinks/base_sink.h \
- /root/.vcpkg/installed/x64-linux/include/spdlog/fmt/ostr.h \
- /root/.vcpkg/installed/x64-linux/include/fmt/ostream.h \
+ /usr/team_project/mcp-tutorial/build/vcpkg_installed/x64-linux/include/spdlog/details/log_msg_buffer.h \
+ /usr/team_project/mcp-tutorial/build/vcpkg_installed/x64-linux/include/spdlog/details/log_msg.h \
+ /usr/team_project/mcp-tutorial/build/vcpkg_installed/x64-linux/include/spdlog/version.h \
+ /usr/team_project/mcp-tutorial/build/vcpkg_installed/x64-linux/include/spdlog/sinks/stdout_color_sinks.h \
+ /usr/team_project/mcp-tutorial/build/vcpkg_installed/x64-linux/include/spdlog/sinks/ansicolor_sink.h \
+ /usr/team_project/mcp-tutorial/build/vcpkg_installed/x64-linux/include/spdlog/details/console_globals.h \
+ /usr/team_project/mcp-tutorial/build/vcpkg_installed/x64-linux/include/spdlog/sinks/sink.h \
+ /usr/team_project/mcp-tutorial/build/vcpkg_installed/x64-linux/include/spdlog/formatter.h \
+ /usr/team_project/mcp-tutorial/build/vcpkg_installed/x64-linux/include/spdlog/sinks/rotating_file_sink.h \
+ /usr/team_project/mcp-tutorial/build/vcpkg_installed/x64-linux/include/spdlog/details/file_helper.h \
+ /usr/team_project/mcp-tutorial/build/vcpkg_installed/x64-linux/include/spdlog/sinks/base_sink.h \
+ /usr/team_project/mcp-tutorial/build/vcpkg_installed/x64-linux/include/spdlog/fmt/ostr.h \
+ /usr/team_project/mcp-tutorial/build/vcpkg_installed/x64-linux/include/fmt/ostream.h \
  /usr/include/c++/13/fstream /usr/include/c++/13/istream \
  /usr/include/c++/13/ios /usr/include/c++/13/bits/ios_base.h \
  /usr/include/c++/13/bits/locale_classes.h \
@@ -264,7 +264,7 @@ src/CMakeFiles/mcp_lib.dir/logger/logger.cpp.o: \
  /usr/include/x86_64-linux-gnu/c++/13/bits/basic_file.h \
  /usr/include/x86_64-linux-gnu/c++/13/bits/c++io.h \
  /usr/include/c++/13/bits/fstream.tcc \
- /root/.vcpkg/installed/x64-linux/include/fmt/chrono.h \
+ /usr/team_project/mcp-tutorial/build/vcpkg_installed/x64-linux/include/fmt/chrono.h \
  /usr/include/c++/13/algorithm \
  /usr/include/c++/13/pstl/glue_algorithm_defs.h \
  /usr/include/c++/13/iterator /usr/include/c++/13/bits/stream_iterator.h \
@@ -274,7 +274,7 @@ src/CMakeFiles/mcp_lib.dir/logger/logger.cpp.o: \
  /usr/include/x86_64-linux-gnu/c++/13/bits/messages_members.h \
  /usr/include/libintl.h /usr/include/c++/13/bits/locale_facets_nonio.tcc \
  /usr/include/c++/13/bits/locale_conv.h \
- /root/.vcpkg/installed/x64-linux/include/fmt/format.h \
+ /usr/team_project/mcp-tutorial/build/vcpkg_installed/x64-linux/include/fmt/format.h \
  /usr/include/c++/13/filesystem /usr/include/c++/13/bits/fs_fwd.h \
  /usr/include/c++/13/bits/fs_path.h /usr/include/c++/13/iomanip \
  /usr/include/c++/13/bits/quoted_string.h /usr/include/c++/13/sstream \

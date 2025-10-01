@@ -1,41 +1,51 @@
 # Google Test framework
-add_executable(test_json_rpc
-    test_json_rpc.cpp
+
+# Logger test
+add_executable(test_logger
+    test_logger.cpp
+    ../src/logger/logger.cpp
 )
 
-target_link_libraries(test_json_rpc 
-    mcp_lib
-    GTest::gtest 
+target_link_libraries(test_logger
+    spdlog::spdlog
+    GTest::gtest
     GTest::gtest_main
 )
 
-add_executable(test_mcp_client
-    test_mcp_client.cpp
+# Config test
+add_executable(test_config
+    test_config.cpp
+    ../src/lib/config.cpp
 )
 
-target_link_libraries(test_mcp_client 
-    mcp_client 
-    mcp_lib
-    GTest::gtest 
+target_link_libraries(test_config
+    nlohmann_json::nlohmann_json
+    GTest::gtest
     GTest::gtest_main
 )
 
 # Add tests to CTest
-add_test(NAME JsonRpcTest COMMAND test_json_rpc)
-add_test(NAME McpClientTest COMMAND test_mcp_client)
-
-# Example test
-add_executable(test_example
-    test_example.cpp
-)
-
-target_link_libraries(test_example 
-    GTest::gtest 
-    GTest::gtest_main
-)
+add_test(NAME LoggerTest COMMAND test_logger)
+add_test(NAME ConfigTest COMMAND test_config)
 
 # Enable Google Test discovery
 include(GoogleTest)
-gtest_discover_tests(test_json_rpc)
-gtest_discover_tests(test_mcp_client)
-gtest_discover_tests(test_example)
+gtest_discover_tests(test_logger)
+gtest_discover_tests(test_config)
+
+# ===================================================================
+# 🔧 扩展位置：在这里添加新的测试用例
+# ===================================================================
+# 示例：
+# # JSON RPC test
+# add_executable(test_json_rpc
+#     test_json_rpc.cpp
+# )
+# target_link_libraries(test_json_rpc
+#     mcp_lib
+#     GTest::gtest
+#     GTest::gtest_main
+# )
+# add_test(NAME JsonRpcTest COMMAND test_json_rpc)
+# gtest_discover_tests(test_json_rpc)
+# ===================================================================

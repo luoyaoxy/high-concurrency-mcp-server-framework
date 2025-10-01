@@ -1,10 +1,6 @@
 file(REMOVE_RECURSE
-  "CMakeFiles/mcp_lib.dir/lib/http_transport.cpp.o"
-  "CMakeFiles/mcp_lib.dir/lib/http_transport.cpp.o.d"
-  "CMakeFiles/mcp_lib.dir/lib/json_rpc.cpp.o"
-  "CMakeFiles/mcp_lib.dir/lib/json_rpc.cpp.o.d"
-  "CMakeFiles/mcp_lib.dir/lib/mcp_protocol.cpp.o"
-  "CMakeFiles/mcp_lib.dir/lib/mcp_protocol.cpp.o.d"
+  "CMakeFiles/mcp_lib.dir/lib/config.cpp.o"
+  "CMakeFiles/mcp_lib.dir/lib/config.cpp.o.d"
   "CMakeFiles/mcp_lib.dir/logger/logger.cpp.o"
   "CMakeFiles/mcp_lib.dir/logger/logger.cpp.o.d"
   "libmcp_lib.a"
