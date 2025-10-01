@@ -1,5 +1,5 @@
 #include <gtest/gtest.h>
-#include "../src/logger/logger.h"
+#include "../src/include/mcp/logger.h"
 #include <fstream>
 #include <filesystem>
 

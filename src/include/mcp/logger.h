@@ -109,60 +109,60 @@ private:
  * TRACE 级别日志宏
  * 使用示例: MCP_LOG_TRACE("这是一条trace日志: {}", value);
  */
-#define MCP_LOG_TRACE(...) \
+#define MCP_LOG_TRACE(fmt, ...) \
     do { \
         auto logger = mcp::logger::Logger::getInstance().getLogger(); \
-        if (logger) logger->trace("[{}:{}] " __VA_ARGS__, __FILE__, __LINE__); \
+        if (logger) logger->trace("[{}:{}] " fmt, __FILE__, __LINE__, ##__VA_ARGS__); \
     } while(0)
 
 /**
  * DEBUG 级别日志宏
  * 使用示例: MCP_LOG_DEBUG("调试信息: {}", debug_value);
  */
-#define MCP_LOG_DEBUG(...) \
+#define MCP_LOG_DEBUG(fmt, ...) \
     do { \
         auto logger = mcp::logger::Logger::getInstance().getLogger(); \
-        if (logger) logger->debug("[{}:{}] " __VA_ARGS__, __FILE__, __LINE__); \
+        if (logger) logger->debug("[{}:{}] " fmt, __FILE__, __LINE__, ##__VA_ARGS__); \
     } while(0)
 
 /**
  * INFO 级别日志宏
  * 使用示例: MCP_LOG_INFO("程序启动成功");
  */
-#define MCP_LOG_INFO(...) \
+#define MCP_LOG_INFO(fmt, ...) \
     do { \
         auto logger = mcp::logger::Logger::getInstance().getLogger(); \
-        if (logger) logger->info("[{}:{}] " __VA_ARGS__, __FILE__, __LINE__); \
+        if (logger) logger->info("[{}:{}] " fmt, __FILE__, __LINE__, ##__VA_ARGS__); \
     } while(0)
 
 /**
  * WARN 级别日志宏
  * 使用示例: MCP_LOG_WARN("警告: 配置文件不存在，使用默认配置");
  */
-#define MCP_LOG_WARN(...) \
+#define MCP_LOG_WARN(fmt, ...) \
     do { \
         auto logger = mcp::logger::Logger::getInstance().getLogger(); \
-        if (logger) logger->warn("[{}:{}] " __VA_ARGS__, __FILE__, __LINE__); \
+        if (logger) logger->warn("[{}:{}] " fmt, __FILE__, __LINE__, ##__VA_ARGS__); \
     } while(0)
 
 /**
  * ERROR 级别日志宏
  * 使用示例: MCP_LOG_ERROR("错误: 无法连接到服务器 {}", server_addr);
  */
-#define MCP_LOG_ERROR(...) \
+#define MCP_LOG_ERROR(fmt, ...) \
     do { \
         auto logger = mcp::logger::Logger::getInstance().getLogger(); \
-        if (logger) logger->error("[{}:{}] " __VA_ARGS__, __FILE__, __LINE__); \
+        if (logger) logger->error("[{}:{}] " fmt, __FILE__, __LINE__, ##__VA_ARGS__); \
     } while(0)
 
 /**
  * CRITICAL 级别日志宏
  * 使用示例: MCP_LOG_CRITICAL("严重错误: 系统即将崩溃");
  */
-#define MCP_LOG_CRITICAL(...) \
+#define MCP_LOG_CRITICAL(fmt, ...) \
     do { \
         auto logger = mcp::logger::Logger::getInstance().getLogger(); \
-        if (logger) logger->critical("[{}:{}] " __VA_ARGS__, __FILE__, __LINE__); \
+        if (logger) logger->critical("[{}:{}] " fmt, __FILE__, __LINE__, ##__VA_ARGS__); \
     } while(0)
 
 // ================================
@@ -173,20 +173,20 @@ private:
  * 带文件名和行号的DEBUG日志宏
  * 使用示例: MCP_LOG_DEBUG_LOC("在这里出现了问题: {}", error_msg);
  */
-#define MCP_LOG_DEBUG_LOC(...) \
+#define MCP_LOG_DEBUG_LOC(fmt, ...) \
     do { \
         auto logger = mcp::logger::Logger::getInstance().getLogger(); \
-        if (logger) logger->debug("[{}:{}] " __VA_ARGS__, __FILE__, __LINE__); \
+        if (logger) logger->debug("[{}:{}] " fmt, __FILE__, __LINE__, ##__VA_ARGS__); \
     } while(0)
 
 /**
  * 带文件名和行号的ERROR日志宏
  * 使用示例: MCP_LOG_ERROR_LOC("错误发生在这里: {}", error_details);
  */
-#define MCP_LOG_ERROR_LOC(...) \
+#define MCP_LOG_ERROR_LOC(fmt, ...) \
     do { \
         auto logger = mcp::logger::Logger::getInstance().getLogger(); \
-        if (logger) logger->error("[{}:{}] " __VA_ARGS__, __FILE__, __LINE__); \
+        if (logger) logger->error("[{}:{}] " fmt, __FILE__, __LINE__, ##__VA_ARGS__); \
     } while(0)
 
 // ================================

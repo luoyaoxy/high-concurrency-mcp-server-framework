@@ -1,7 +1,7 @@
 src/CMakeFiles/mcp_lib.dir/logger/logger.cpp.o: \
  /usr/team_project/mcp-tutorial/src/logger/logger.cpp \
  /usr/include/stdc-predef.h \
- /usr/team_project/mcp-tutorial/src/logger/logger.h \
+ /usr/team_project/mcp-tutorial/src/include/mcp/logger.h \
  /usr/team_project/mcp-tutorial/build/vcpkg_installed/x64-linux/include/spdlog/spdlog.h \
  /usr/team_project/mcp-tutorial/build/vcpkg_installed/x64-linux/include/spdlog/common.h \
  /usr/team_project/mcp-tutorial/build/vcpkg_installed/x64-linux/include/spdlog/details/null_mutex.h \
