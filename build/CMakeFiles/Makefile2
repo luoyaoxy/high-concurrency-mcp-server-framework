@@ -118,6 +118,7 @@ src/clean: src/CMakeFiles/mcp_server.dir/clean
 # Recursive "all" directory target.
 tests/all: tests/CMakeFiles/test_logger.dir/all
 tests/all: tests/CMakeFiles/test_config.dir/all
+tests/all: tests/CMakeFiles/test_json_rpc.dir/all
 .PHONY : tests/all
 
 # Recursive "preinstall" directory target.
@@ -127,6 +128,7 @@ tests/preinstall:
 # Recursive "clean" directory target.
 tests/clean: tests/CMakeFiles/test_logger.dir/clean
 tests/clean: tests/CMakeFiles/test_config.dir/clean
+tests/clean: tests/CMakeFiles/test_json_rpc.dir/clean
 .PHONY : tests/clean
 
 #=============================================================================
@@ -136,12 +138,12 @@ tests/clean: tests/CMakeFiles/test_config.dir/clean
 src/CMakeFiles/mcp_lib.dir/all:
 	$(MAKE) $(MAKESILENT) -f src/CMakeFiles/mcp_lib.dir/build.make src/CMakeFiles/mcp_lib.dir/depend
 	$(MAKE) $(MAKESILENT) -f src/CMakeFiles/mcp_lib.dir/build.make src/CMakeFiles/mcp_lib.dir/build
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/usr/team_project/mcp-tutorial/build/CMakeFiles --progress-num=3,4,5 "Built target mcp_lib"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/usr/team_project/mcp-tutorial/build/CMakeFiles --progress-num=3,4,5,6 "Built target mcp_lib"
 .PHONY : src/CMakeFiles/mcp_lib.dir/all
 
 # Build rule for subdir invocation for target.
 src/CMakeFiles/mcp_lib.dir/rule: cmake_check_build_system
-	$(CMAKE_COMMAND) -E cmake_progress_start /usr/team_project/mcp-tutorial/build/CMakeFiles 3
+	$(CMAKE_COMMAND) -E cmake_progress_start /usr/team_project/mcp-tutorial/build/CMakeFiles 4
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 src/CMakeFiles/mcp_lib.dir/all
 	$(CMAKE_COMMAND) -E cmake_progress_start /usr/team_project/mcp-tutorial/build/CMakeFiles 0
 .PHONY : src/CMakeFiles/mcp_lib.dir/rule
@@ -162,12 +164,12 @@ src/CMakeFiles/mcp_lib.dir/clean:
 src/CMakeFiles/mcp_server.dir/all: src/CMakeFiles/mcp_lib.dir/all
 	$(MAKE) $(MAKESILENT) -f src/CMakeFiles/mcp_server.dir/build.make src/CMakeFiles/mcp_server.dir/depend
 	$(MAKE) $(MAKESILENT) -f src/CMakeFiles/mcp_server.dir/build.make src/CMakeFiles/mcp_server.dir/build
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/usr/team_project/mcp-tutorial/build/CMakeFiles --progress-num=6,7 "Built target mcp_server"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/usr/team_project/mcp-tutorial/build/CMakeFiles --progress-num=7,8 "Built target mcp_server"
 .PHONY : src/CMakeFiles/mcp_server.dir/all
 
 # Build rule for subdir invocation for target.
 src/CMakeFiles/mcp_server.dir/rule: cmake_check_build_system
-	$(CMAKE_COMMAND) -E cmake_progress_start /usr/team_project/mcp-tutorial/build/CMakeFiles 5
+	$(CMAKE_COMMAND) -E cmake_progress_start /usr/team_project/mcp-tutorial/build/CMakeFiles 6
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 src/CMakeFiles/mcp_server.dir/all
 	$(CMAKE_COMMAND) -E cmake_progress_start /usr/team_project/mcp-tutorial/build/CMakeFiles 0
 .PHONY : src/CMakeFiles/mcp_server.dir/rule
@@ -193,7 +195,7 @@ examples/CMakeFiles/config_demo.dir/all: src/CMakeFiles/mcp_lib.dir/all
 
 # Build rule for subdir invocation for target.
 examples/CMakeFiles/config_demo.dir/rule: cmake_check_build_system
-	$(CMAKE_COMMAND) -E cmake_progress_start /usr/team_project/mcp-tutorial/build/CMakeFiles 5
+	$(CMAKE_COMMAND) -E cmake_progress_start /usr/team_project/mcp-tutorial/build/CMakeFiles 6
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 examples/CMakeFiles/config_demo.dir/all
 	$(CMAKE_COMMAND) -E cmake_progress_start /usr/team_project/mcp-tutorial/build/CMakeFiles 0
 .PHONY : examples/CMakeFiles/config_demo.dir/rule
@@ -214,7 +216,7 @@ examples/CMakeFiles/config_demo.dir/clean:
 tests/CMakeFiles/test_logger.dir/all:
 	$(MAKE) $(MAKESILENT) -f tests/CMakeFiles/test_logger.dir/build.make tests/CMakeFiles/test_logger.dir/depend
 	$(MAKE) $(MAKESILENT) -f tests/CMakeFiles/test_logger.dir/build.make tests/CMakeFiles/test_logger.dir/build
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/usr/team_project/mcp-tutorial/build/CMakeFiles --progress-num=11,12,13 "Built target test_logger"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/usr/team_project/mcp-tutorial/build/CMakeFiles --progress-num=14,15,16 "Built target test_logger"
 .PHONY : tests/CMakeFiles/test_logger.dir/all
 
 # Build rule for subdir invocation for target.
@@ -240,7 +242,7 @@ tests/CMakeFiles/test_logger.dir/clean:
 tests/CMakeFiles/test_config.dir/all:
 	$(MAKE) $(MAKESILENT) -f tests/CMakeFiles/test_config.dir/build.make tests/CMakeFiles/test_config.dir/depend
 	$(MAKE) $(MAKESILENT) -f tests/CMakeFiles/test_config.dir/build.make tests/CMakeFiles/test_config.dir/build
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/usr/team_project/mcp-tutorial/build/CMakeFiles --progress-num=8,9,10 "Built target test_config"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/usr/team_project/mcp-tutorial/build/CMakeFiles --progress-num=9,10,11 "Built target test_config"
 .PHONY : tests/CMakeFiles/test_config.dir/all
 
 # Build rule for subdir invocation for target.
@@ -258,6 +260,32 @@ test_config: tests/CMakeFiles/test_config.dir/rule
 tests/CMakeFiles/test_config.dir/clean:
 	$(MAKE) $(MAKESILENT) -f tests/CMakeFiles/test_config.dir/build.make tests/CMakeFiles/test_config.dir/clean
 .PHONY : tests/CMakeFiles/test_config.dir/clean
+
+#=============================================================================
+# Target rules for target tests/CMakeFiles/test_json_rpc.dir
+
+# All Build rule for target.
+tests/CMakeFiles/test_json_rpc.dir/all: src/CMakeFiles/mcp_lib.dir/all
+	$(MAKE) $(MAKESILENT) -f tests/CMakeFiles/test_json_rpc.dir/build.make tests/CMakeFiles/test_json_rpc.dir/depend
+	$(MAKE) $(MAKESILENT) -f tests/CMakeFiles/test_json_rpc.dir/build.make tests/CMakeFiles/test_json_rpc.dir/build
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/usr/team_project/mcp-tutorial/build/CMakeFiles --progress-num=12,13 "Built target test_json_rpc"
+.PHONY : tests/CMakeFiles/test_json_rpc.dir/all
+
+# Build rule for subdir invocation for target.
+tests/CMakeFiles/test_json_rpc.dir/rule: cmake_check_build_system
+	$(CMAKE_COMMAND) -E cmake_progress_start /usr/team_project/mcp-tutorial/build/CMakeFiles 6
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 tests/CMakeFiles/test_json_rpc.dir/all
+	$(CMAKE_COMMAND) -E cmake_progress_start /usr/team_project/mcp-tutorial/build/CMakeFiles 0
+.PHONY : tests/CMakeFiles/test_json_rpc.dir/rule
+
+# Convenience name for target.
+test_json_rpc: tests/CMakeFiles/test_json_rpc.dir/rule
+.PHONY : test_json_rpc
+
+# clean rule for target.
+tests/CMakeFiles/test_json_rpc.dir/clean:
+	$(MAKE) $(MAKESILENT) -f tests/CMakeFiles/test_json_rpc.dir/build.make tests/CMakeFiles/test_json_rpc.dir/clean
+.PHONY : tests/CMakeFiles/test_json_rpc.dir/clean
 
 #=============================================================================
 # Special targets to cleanup operation of make.

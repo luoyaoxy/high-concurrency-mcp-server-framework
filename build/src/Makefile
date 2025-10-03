@@ -154,6 +154,30 @@ mcp_server/fast:
 	cd /usr/team_project/mcp-tutorial/build && $(MAKE) $(MAKESILENT) -f src/CMakeFiles/mcp_server.dir/build.make src/CMakeFiles/mcp_server.dir/build
 .PHONY : mcp_server/fast
 
+json_rpc/stdio_jsonrpc.o: json_rpc/stdio_jsonrpc.cpp.o
+.PHONY : json_rpc/stdio_jsonrpc.o
+
+# target to build an object file
+json_rpc/stdio_jsonrpc.cpp.o:
+	cd /usr/team_project/mcp-tutorial/build && $(MAKE) $(MAKESILENT) -f src/CMakeFiles/mcp_lib.dir/build.make src/CMakeFiles/mcp_lib.dir/json_rpc/stdio_jsonrpc.cpp.o
+.PHONY : json_rpc/stdio_jsonrpc.cpp.o
+
+json_rpc/stdio_jsonrpc.i: json_rpc/stdio_jsonrpc.cpp.i
+.PHONY : json_rpc/stdio_jsonrpc.i
+
+# target to preprocess a source file
+json_rpc/stdio_jsonrpc.cpp.i:
+	cd /usr/team_project/mcp-tutorial/build && $(MAKE) $(MAKESILENT) -f src/CMakeFiles/mcp_lib.dir/build.make src/CMakeFiles/mcp_lib.dir/json_rpc/stdio_jsonrpc.cpp.i
+.PHONY : json_rpc/stdio_jsonrpc.cpp.i
+
+json_rpc/stdio_jsonrpc.s: json_rpc/stdio_jsonrpc.cpp.s
+.PHONY : json_rpc/stdio_jsonrpc.s
+
+# target to generate assembly for a file
+json_rpc/stdio_jsonrpc.cpp.s:
+	cd /usr/team_project/mcp-tutorial/build && $(MAKE) $(MAKESILENT) -f src/CMakeFiles/mcp_lib.dir/build.make src/CMakeFiles/mcp_lib.dir/json_rpc/stdio_jsonrpc.cpp.s
+.PHONY : json_rpc/stdio_jsonrpc.cpp.s
+
 lib/config.o: lib/config.cpp.o
 .PHONY : lib/config.o
 
@@ -237,6 +261,9 @@ help:
 	@echo "... test"
 	@echo "... mcp_lib"
 	@echo "... mcp_server"
+	@echo "... json_rpc/stdio_jsonrpc.o"
+	@echo "... json_rpc/stdio_jsonrpc.i"
+	@echo "... json_rpc/stdio_jsonrpc.s"
 	@echo "... lib/config.o"
 	@echo "... lib/config.i"
 	@echo "... lib/config.s"

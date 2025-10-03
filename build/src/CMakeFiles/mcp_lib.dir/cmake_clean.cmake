@@ -1,4 +1,6 @@
 file(REMOVE_RECURSE
+  "CMakeFiles/mcp_lib.dir/json_rpc/stdio_jsonrpc.cpp.o"
+  "CMakeFiles/mcp_lib.dir/json_rpc/stdio_jsonrpc.cpp.o.d"
   "CMakeFiles/mcp_lib.dir/lib/config.cpp.o"
   "CMakeFiles/mcp_lib.dir/lib/config.cpp.o.d"
   "CMakeFiles/mcp_lib.dir/logger/logger.cpp.o"

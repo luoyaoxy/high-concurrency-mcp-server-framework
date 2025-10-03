@@ -38,14 +38,14 @@ gtest_discover_tests(test_config)
 # ===================================================================
 # 示例：
 # # JSON RPC test
-# add_executable(test_json_rpc
-#     test_json_rpc.cpp
-# )
-# target_link_libraries(test_json_rpc
-#     mcp_lib
-#     GTest::gtest
-#     GTest::gtest_main
-# )
-# add_test(NAME JsonRpcTest COMMAND test_json_rpc)
-# gtest_discover_tests(test_json_rpc)
+add_executable(test_json_rpc
+    stdio_jsonrpc_test.cpp
+)
+target_link_libraries(test_json_rpc
+    mcp_lib
+    GTest::gtest
+    GTest::gtest_main
+)
+add_test(NAME JsonRpcTest COMMAND test_json_rpc)
+gtest_discover_tests(test_json_rpc)
 # ===================================================================

@@ -154,6 +154,20 @@ test_config/fast:
 	cd /usr/team_project/mcp-tutorial/build && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/test_config.dir/build.make tests/CMakeFiles/test_config.dir/build
 .PHONY : test_config/fast
 
+# Convenience name for target.
+tests/CMakeFiles/test_json_rpc.dir/rule:
+	cd /usr/team_project/mcp-tutorial/build && $(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 tests/CMakeFiles/test_json_rpc.dir/rule
+.PHONY : tests/CMakeFiles/test_json_rpc.dir/rule
+
+# Convenience name for target.
+test_json_rpc: tests/CMakeFiles/test_json_rpc.dir/rule
+.PHONY : test_json_rpc
+
+# fast build rule for target.
+test_json_rpc/fast:
+	cd /usr/team_project/mcp-tutorial/build && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/test_json_rpc.dir/build.make tests/CMakeFiles/test_json_rpc.dir/build
+.PHONY : test_json_rpc/fast
+
 __/src/lib/config.o: __/src/lib/config.cpp.o
 .PHONY : __/src/lib/config.o
 
@@ -201,6 +215,30 @@ __/src/logger/logger.s: __/src/logger/logger.cpp.s
 __/src/logger/logger.cpp.s:
 	cd /usr/team_project/mcp-tutorial/build && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/test_logger.dir/build.make tests/CMakeFiles/test_logger.dir/__/src/logger/logger.cpp.s
 .PHONY : __/src/logger/logger.cpp.s
+
+stdio_jsonrpc_test.o: stdio_jsonrpc_test.cpp.o
+.PHONY : stdio_jsonrpc_test.o
+
+# target to build an object file
+stdio_jsonrpc_test.cpp.o:
+	cd /usr/team_project/mcp-tutorial/build && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/test_json_rpc.dir/build.make tests/CMakeFiles/test_json_rpc.dir/stdio_jsonrpc_test.cpp.o
+.PHONY : stdio_jsonrpc_test.cpp.o
+
+stdio_jsonrpc_test.i: stdio_jsonrpc_test.cpp.i
+.PHONY : stdio_jsonrpc_test.i
+
+# target to preprocess a source file
+stdio_jsonrpc_test.cpp.i:
+	cd /usr/team_project/mcp-tutorial/build && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/test_json_rpc.dir/build.make tests/CMakeFiles/test_json_rpc.dir/stdio_jsonrpc_test.cpp.i
+.PHONY : stdio_jsonrpc_test.cpp.i
+
+stdio_jsonrpc_test.s: stdio_jsonrpc_test.cpp.s
+.PHONY : stdio_jsonrpc_test.s
+
+# target to generate assembly for a file
+stdio_jsonrpc_test.cpp.s:
+	cd /usr/team_project/mcp-tutorial/build && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/test_json_rpc.dir/build.make tests/CMakeFiles/test_json_rpc.dir/stdio_jsonrpc_test.cpp.s
+.PHONY : stdio_jsonrpc_test.cpp.s
 
 test_config.o: test_config.cpp.o
 .PHONY : test_config.o
@@ -260,6 +298,7 @@ help:
 	@echo "... rebuild_cache"
 	@echo "... test"
 	@echo "... test_config"
+	@echo "... test_json_rpc"
 	@echo "... test_logger"
 	@echo "... __/src/lib/config.o"
 	@echo "... __/src/lib/config.i"
@@ -267,6 +306,9 @@ help:
 	@echo "... __/src/logger/logger.o"
 	@echo "... __/src/logger/logger.i"
 	@echo "... __/src/logger/logger.s"
+	@echo "... stdio_jsonrpc_test.o"
+	@echo "... stdio_jsonrpc_test.i"
+	@echo "... stdio_jsonrpc_test.s"
 	@echo "... test_config.o"
 	@echo "... test_config.i"
 	@echo "... test_config.s"

@@ -12,6 +12,7 @@
 /usr/team_project/mcp-tutorial/build/examples/CMakeFiles/rebuild_cache.dir
 /usr/team_project/mcp-tutorial/build/tests/CMakeFiles/test_logger.dir
 /usr/team_project/mcp-tutorial/build/tests/CMakeFiles/test_config.dir
+/usr/team_project/mcp-tutorial/build/tests/CMakeFiles/test_json_rpc.dir
 /usr/team_project/mcp-tutorial/build/tests/CMakeFiles/test.dir
 /usr/team_project/mcp-tutorial/build/tests/CMakeFiles/edit_cache.dir
 /usr/team_project/mcp-tutorial/build/tests/CMakeFiles/rebuild_cache.dir

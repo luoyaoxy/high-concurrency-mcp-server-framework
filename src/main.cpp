@@ -1,5 +1,6 @@
 #include "mcp/config.h"
 #include "mcp/logger.h"
+#include "mcp/jsonrpc.h"
 #include <iostream>
 
 using namespace mcp;
@@ -58,8 +59,34 @@ int main(int argc, char* argv[]) {
 
   
     MCP_LOG_INFO("Successfully started MCP Server on port {}...", port);
-    std::cin.get();
-    MCP_LOG_SHUTDOWN();
+    MCP_LOG_INFO("Log file: {}", log_file);
+    MCP_LOG_INFO("Log level: {}", log_level_str);
+    MCP_LOG_INFO("Log file size: {}", log_file_size);
+    MCP_LOG_INFO("Log file count: {}", log_file_count);
+    MCP_LOG_INFO("Log console output: {}", log_console);
 
+    // ==============================
+    // 注册 JSON-RPC 方法并启动 stdio 服务器
+    // ==============================
+    mcp::JsonRpcDispatcher dispatcher;
+    dispatcher.registerHandler("initialize", [](const nlohmann::json& params) -> nlohmann::json {
+        nlohmann::json capabilities = {
+            {"protocolVersion", "2024-11-05"},
+            {"implementation", {
+                {"name", "mcp-tutorial"},
+                {"version", "1.0.0"}
+            }}
+        };
+        return capabilities;
+    });
+
+    dispatcher.registerHandler("echo", [](const nlohmann::json& params) -> nlohmann::json {
+        return params;
+    });
+
+    mcp::StdioJsonRpcServer server(std::move(dispatcher));
+    server.run();
+
+    MCP_LOG_SHUTDOWN();
     return 0;
 }

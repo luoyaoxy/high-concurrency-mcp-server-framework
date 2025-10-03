@@ -191,6 +191,19 @@ test_config/fast:
 	$(MAKE) $(MAKESILENT) -f tests/CMakeFiles/test_config.dir/build.make tests/CMakeFiles/test_config.dir/build
 .PHONY : test_config/fast
 
+#=============================================================================
+# Target rules for targets named test_json_rpc
+
+# Build rule for target.
+test_json_rpc: cmake_check_build_system
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 test_json_rpc
+.PHONY : test_json_rpc
+
+# fast build rule for target.
+test_json_rpc/fast:
+	$(MAKE) $(MAKESILENT) -f tests/CMakeFiles/test_json_rpc.dir/build.make tests/CMakeFiles/test_json_rpc.dir/build
+.PHONY : test_json_rpc/fast
+
 # Help Target
 help:
 	@echo "The following are some of the valid targets for this Makefile:"
@@ -204,6 +217,7 @@ help:
 	@echo "... mcp_lib"
 	@echo "... mcp_server"
 	@echo "... test_config"
+	@echo "... test_json_rpc"
 	@echo "... test_logger"
 .PHONY : help
 

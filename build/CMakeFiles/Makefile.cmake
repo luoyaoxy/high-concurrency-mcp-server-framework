@@ -94,4 +94,5 @@ set(CMAKE_DEPEND_INFO_FILES
   "examples/CMakeFiles/config_demo.dir/DependInfo.cmake"
   "tests/CMakeFiles/test_logger.dir/DependInfo.cmake"
   "tests/CMakeFiles/test_config.dir/DependInfo.cmake"
+  "tests/CMakeFiles/test_json_rpc.dir/DependInfo.cmake"
   )

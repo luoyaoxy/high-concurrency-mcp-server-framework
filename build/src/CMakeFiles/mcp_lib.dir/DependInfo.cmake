@@ -8,6 +8,7 @@ set(CMAKE_DEPENDS_LANGUAGES
 
 # The set of dependency files which are needed:
 set(CMAKE_DEPENDS_DEPENDENCY_FILES
+  "/usr/team_project/mcp-tutorial/src/json_rpc/stdio_jsonrpc.cpp" "src/CMakeFiles/mcp_lib.dir/json_rpc/stdio_jsonrpc.cpp.o" "gcc" "src/CMakeFiles/mcp_lib.dir/json_rpc/stdio_jsonrpc.cpp.o.d"
   "/usr/team_project/mcp-tutorial/src/lib/config.cpp" "src/CMakeFiles/mcp_lib.dir/lib/config.cpp.o" "gcc" "src/CMakeFiles/mcp_lib.dir/lib/config.cpp.o.d"
   "/usr/team_project/mcp-tutorial/src/logger/logger.cpp" "src/CMakeFiles/mcp_lib.dir/logger/logger.cpp.o" "gcc" "src/CMakeFiles/mcp_lib.dir/logger/logger.cpp.o.d"
   )

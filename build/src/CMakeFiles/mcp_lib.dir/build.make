@@ -97,19 +97,35 @@ src/CMakeFiles/mcp_lib.dir/logger/logger.cpp.s: cmake_force
 	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Compiling CXX source to assembly CMakeFiles/mcp_lib.dir/logger/logger.cpp.s"
 	cd /usr/team_project/mcp-tutorial/build/src && /usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /usr/team_project/mcp-tutorial/src/logger/logger.cpp -o CMakeFiles/mcp_lib.dir/logger/logger.cpp.s
 
+src/CMakeFiles/mcp_lib.dir/json_rpc/stdio_jsonrpc.cpp.o: src/CMakeFiles/mcp_lib.dir/flags.make
+src/CMakeFiles/mcp_lib.dir/json_rpc/stdio_jsonrpc.cpp.o: /usr/team_project/mcp-tutorial/src/json_rpc/stdio_jsonrpc.cpp
+src/CMakeFiles/mcp_lib.dir/json_rpc/stdio_jsonrpc.cpp.o: src/CMakeFiles/mcp_lib.dir/compiler_depend.ts
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/usr/team_project/mcp-tutorial/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_3) "Building CXX object src/CMakeFiles/mcp_lib.dir/json_rpc/stdio_jsonrpc.cpp.o"
+	cd /usr/team_project/mcp-tutorial/build/src && /usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -MD -MT src/CMakeFiles/mcp_lib.dir/json_rpc/stdio_jsonrpc.cpp.o -MF CMakeFiles/mcp_lib.dir/json_rpc/stdio_jsonrpc.cpp.o.d -o CMakeFiles/mcp_lib.dir/json_rpc/stdio_jsonrpc.cpp.o -c /usr/team_project/mcp-tutorial/src/json_rpc/stdio_jsonrpc.cpp
+
+src/CMakeFiles/mcp_lib.dir/json_rpc/stdio_jsonrpc.cpp.i: cmake_force
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Preprocessing CXX source to CMakeFiles/mcp_lib.dir/json_rpc/stdio_jsonrpc.cpp.i"
+	cd /usr/team_project/mcp-tutorial/build/src && /usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E /usr/team_project/mcp-tutorial/src/json_rpc/stdio_jsonrpc.cpp > CMakeFiles/mcp_lib.dir/json_rpc/stdio_jsonrpc.cpp.i
+
+src/CMakeFiles/mcp_lib.dir/json_rpc/stdio_jsonrpc.cpp.s: cmake_force
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Compiling CXX source to assembly CMakeFiles/mcp_lib.dir/json_rpc/stdio_jsonrpc.cpp.s"
+	cd /usr/team_project/mcp-tutorial/build/src && /usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /usr/team_project/mcp-tutorial/src/json_rpc/stdio_jsonrpc.cpp -o CMakeFiles/mcp_lib.dir/json_rpc/stdio_jsonrpc.cpp.s
+
 # Object files for target mcp_lib
 mcp_lib_OBJECTS = \
 "CMakeFiles/mcp_lib.dir/lib/config.cpp.o" \
-"CMakeFiles/mcp_lib.dir/logger/logger.cpp.o"
+"CMakeFiles/mcp_lib.dir/logger/logger.cpp.o" \
+"CMakeFiles/mcp_lib.dir/json_rpc/stdio_jsonrpc.cpp.o"
 
 # External object files for target mcp_lib
 mcp_lib_EXTERNAL_OBJECTS =
 
 src/libmcp_lib.a: src/CMakeFiles/mcp_lib.dir/lib/config.cpp.o
 src/libmcp_lib.a: src/CMakeFiles/mcp_lib.dir/logger/logger.cpp.o
+src/libmcp_lib.a: src/CMakeFiles/mcp_lib.dir/json_rpc/stdio_jsonrpc.cpp.o
 src/libmcp_lib.a: src/CMakeFiles/mcp_lib.dir/build.make
 src/libmcp_lib.a: src/CMakeFiles/mcp_lib.dir/link.txt
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --bold --progress-dir=/usr/team_project/mcp-tutorial/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_3) "Linking CXX static library libmcp_lib.a"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --bold --progress-dir=/usr/team_project/mcp-tutorial/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_4) "Linking CXX static library libmcp_lib.a"
 	cd /usr/team_project/mcp-tutorial/build/src && $(CMAKE_COMMAND) -P CMakeFiles/mcp_lib.dir/cmake_clean_target.cmake
 	cd /usr/team_project/mcp-tutorial/build/src && $(CMAKE_COMMAND) -E cmake_link_script CMakeFiles/mcp_lib.dir/link.txt --verbose=$(VERBOSE)
 

@@ -118,7 +118,7 @@ void Config::SetDefaults() {
 
     auto& logging = config_data_["logging"];
     if (!logging.contains("log_file_path")) {
-        logging["log_file_path"] = "logs/server.log";
+        logging["log_file_path"] = "../../logs/server.log";
     }
     if (!logging.contains("log_level")) {
         logging["log_level"] = "info";

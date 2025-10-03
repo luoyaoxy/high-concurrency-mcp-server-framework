@@ -2,6 +2,7 @@
 add_library(mcp_lib STATIC
     lib/config.cpp
     logger/logger.cpp
+    json_rpc/stdio_jsonrpc.cpp
 )
 
 target_include_directories(mcp_lib PUBLIC

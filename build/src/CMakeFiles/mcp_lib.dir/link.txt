@@ -1,2 +1,2 @@
-/usr/bin/ar qc libmcp_lib.a CMakeFiles/mcp_lib.dir/lib/config.cpp.o CMakeFiles/mcp_lib.dir/logger/logger.cpp.o
+/usr/bin/ar qc libmcp_lib.a CMakeFiles/mcp_lib.dir/lib/config.cpp.o CMakeFiles/mcp_lib.dir/logger/logger.cpp.o CMakeFiles/mcp_lib.dir/json_rpc/stdio_jsonrpc.cpp.o
 /usr/bin/ranlib libmcp_lib.a
