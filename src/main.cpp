@@ -1,14 +1,11 @@
-#include "mcp/config.h"
-#include "mcp/logger.h"
-#include "mcp/jsonrpc.h"
+#include "config.h"
+#include "logger.h"
+#include "jsonrpc.h"
 #include <iostream>
 
 using namespace mcp;
 using namespace mcp::logger;
 
-/**
- * Convert string log level to spdlog level enum
- */
 spdlog::level::level_enum StringToLogLevel(const std::string& level_str) {
     if (level_str == "trace") {
         return spdlog::level::trace;
@@ -28,9 +25,6 @@ spdlog::level::level_enum StringToLogLevel(const std::string& level_str) {
 }
 
 int main(int argc, char* argv[]) {
-    // ===================================================================
-    // Step 1: Load Configuration
-    // ===================================================================
     std::string config_file = "../../config/server.json";
     if (argc > 1) {
         config_file = argv[1];
@@ -65,9 +59,7 @@ int main(int argc, char* argv[]) {
     MCP_LOG_INFO("Log file count: {}", log_file_count);
     MCP_LOG_INFO("Log console output: {}", log_console);
 
-    // ==============================
-    // 注册 JSON-RPC 方法并启动 stdio 服务器
-    // ==============================
+    //   注册一个回复自身能力的方法
     mcp::JsonRpcDispatcher dispatcher;
     dispatcher.registerHandler("initialize", [](const nlohmann::json& params) -> nlohmann::json {
         nlohmann::json capabilities = {
@@ -80,6 +72,7 @@ int main(int argc, char* argv[]) {
         return capabilities;
     });
 
+    // 注册 echo 方法
     dispatcher.registerHandler("echo", [](const nlohmann::json& params) -> nlohmann::json {
         return params;
     });

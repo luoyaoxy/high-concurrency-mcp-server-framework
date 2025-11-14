@@ -1,4 +1,4 @@
-#include "mcp/logger.h"
+#include "logger.h"
 #include <spdlog/sinks/stdout_color_sinks.h>
 #include <spdlog/sinks/rotating_file_sink.h>
 #include <filesystem>
@@ -53,7 +53,7 @@ void Logger::init(const std::string& logger_name,
         // Create logger
         m_logger = std::make_shared<spdlog::logger>(logger_name, sinks.begin(), sinks.end());
         m_logger->set_level(spdlog::level::info);  // Default level
-        m_logger->flush_on(spdlog::level::warn);   // Auto flush on WARN and above
+        m_logger->flush_on(spdlog::level::info);   // Auto flush on INFO and above（实时刷新）
 
         // Register as default logger
         spdlog::register_logger(m_logger);
@@ -94,13 +94,18 @@ void Logger::flush() {
 }
 
 void Logger::shutdown() {
-    if (m_logger) {
-        m_logger->info("Logger shutting down...");
-        m_logger->flush();
-        spdlog::shutdown();
-        m_logger.reset();
-        m_initialized = false;
+    if (!m_initialized) return;
+    try {
+        if (m_logger) {
+            m_logger->flush();
+        }
+    } catch (...) {
+        // 避免在析构阶段抛异常
     }
+    // 在最后阶段关闭 spdlog 注册表并清理资源，不再写日志
+    spdlog::shutdown();
+    m_logger.reset();
+    m_initialized = false;
 }
 
 Logger::~Logger() {

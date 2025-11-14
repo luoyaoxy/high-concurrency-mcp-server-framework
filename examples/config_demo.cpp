@@ -1,5 +1,5 @@
-#include "mcp/config.h"
-#include "mcp/logger.h"
+#include "config.h"
+#include "logger.h"
 #include <iostream>
 
 using namespace mcp;

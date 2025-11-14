@@ -5,6 +5,7 @@
     "curl",
     "nlohmann-json",
     "spdlog",
-    "gtest"
+    "gtest",
+    "cpp-httplib"
   ]
 }

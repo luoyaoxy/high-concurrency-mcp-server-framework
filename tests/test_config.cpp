@@ -1,5 +1,5 @@
 #include <gtest/gtest.h>
-#include "mcp/config.h"
+#include "config.h"
 #include <fstream>
 #include <filesystem>
 

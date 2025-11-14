@@ -1,8 +1,19 @@
-#include "mcp/jsonrpc.h"
+#include "jsonrpc.h"
+#include "logger.h"
 #include <gtest/gtest.h>
 #include <sstream>
 
 using namespace mcp;
+
+// 在所有测试之前初始化日志系统
+class StdioJsonRpcServerTest : public ::testing::Test {
+protected:
+    static void SetUpTestSuite() {
+        // 初始化日志系统并设置为 debug 级别
+        MCP_LOG_INIT("mcp_test", "", 0, 0, true);
+        MCP_LOG_SET_LEVEL(spdlog::level::debug);
+    }
+};
 
 static JsonRpcDispatcher makeDispatcher() {
     JsonRpcDispatcher d;
@@ -43,7 +54,7 @@ static json parseFirstFramePayload(const std::string& framed) {
     return json::parse(payload);
 }
 
-TEST(StdioJsonRpcServerTest, BasicSuccess) {
+TEST_F(StdioJsonRpcServerTest, BasicSuccess) {
     JsonRpcDispatcher d = makeDispatcher();
     std::stringstream in;
     std::stringstream out;
@@ -65,7 +76,7 @@ TEST(StdioJsonRpcServerTest, BasicSuccess) {
     ASSERT_EQ(resp_json["result"].get<int>(), 3);
 }
 
-TEST(StdioJsonRpcServerTest, MethodNotFound) {
+TEST_F(StdioJsonRpcServerTest, MethodNotFound) {
     JsonRpcDispatcher d;
     std::stringstream in;
     std::stringstream out;
@@ -85,7 +96,7 @@ TEST(StdioJsonRpcServerTest, MethodNotFound) {
     ASSERT_EQ(resp_json["error"]["code"].get<int>(), jsonrpc_errc::MethodNotFound);
 }
 
-TEST(StdioJsonRpcServerTest, InvalidRequestAndParseError) {
+TEST_F(StdioJsonRpcServerTest, InvalidRequestAndParseError) {
     JsonRpcDispatcher d = makeDispatcher();
     std::stringstream in;
     std::stringstream out;
@@ -121,7 +132,7 @@ TEST(StdioJsonRpcServerTest, InvalidRequestAndParseError) {
     ASSERT_EQ(resp_json2["error"]["code"].get<int>(), jsonrpc_errc::ParseError);
 }
 
-TEST(StdioJsonRpcServerTest, NotificationNoResponse) {
+TEST_F(StdioJsonRpcServerTest, NotificationNoResponse) {
     JsonRpcDispatcher d = makeDispatcher();
     std::stringstream in;
     std::stringstream out;
