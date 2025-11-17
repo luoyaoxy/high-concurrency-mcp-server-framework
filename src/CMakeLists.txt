@@ -32,10 +32,10 @@ find_package(httplib CONFIG REQUIRED)
 target_link_libraries(mcp_lib httplib::httplib)
 
 # ===================================================================
-# Main executable - MCP Server (stdio)
+# MCP Server - 统一服务器（支持 HTTP/stdio/both 三种模式）
 # ===================================================================
 add_executable(mcp_server
-    main.cpp
+    mcp_server_main.cpp
 )
 
 target_link_libraries(mcp_server
@@ -43,41 +43,22 @@ target_link_libraries(mcp_server
 )
 
 # ===================================================================
-# HTTP Server - MCP HTTP JSON-RPC Server
+# MCP Client SDK - 客户端库
 # ===================================================================
-add_executable(mcp_http_server
-    http_server_main.cpp
+add_library(mcp_client_sdk STATIC
+    mcp_client/mcp_client.cpp
 )
 
-target_link_libraries(mcp_http_server
+target_include_directories(mcp_client_sdk PUBLIC
+    ${CMAKE_CURRENT_SOURCE_DIR}/mcp_client
+    ${CMAKE_CURRENT_SOURCE_DIR}/mcp
+)
+
+target_link_libraries(mcp_client_sdk
     mcp_lib
+    httplib::httplib
 )
 
 # ===================================================================
-# Full MCP HTTP Server - 完整的 MCP 服务器（支持 Tools/Resources/Prompts）
-# ===================================================================
-add_executable(mcp_full_http_server
-    mcp_full_http_server_main.cpp
-)
-
-target_link_libraries(mcp_full_http_server
-    mcp_lib
-)
-
-# ===================================================================
-# 🔧 扩展位置：在这里添加新的库或可执行文件
-# ===================================================================
-# 示例：
-# # 添加 MCP Client SDK
-# add_library(mcp_client STATIC
-#     mcp_client/client.cpp
-# )
-# target_link_libraries(mcp_client mcp_lib)
-#
-# # 添加其他服务器
-# add_executable(mcp_weather_server
-#     mcp_server/main.cpp
-#     mcp_server/weather_server.cpp
-# )
-# target_link_libraries(mcp_weather_server mcp_lib)
+# 🔧 扩展位置：在这里添加更多库或可执行文件
 # ===================================================================

@@ -33,11 +33,7 @@ enum class Role {
     Assistant
 };
 
-// ===== Tool (工具) 相关类型 =====
-
-/**
- * @brief 工具输入 Schema (JSON Schema)
- */
+// 工具输入 Schema (JSON Schema)
 struct ToolInputSchema {
     std::string type = "object";
     json properties;
@@ -47,9 +43,7 @@ struct ToolInputSchema {
     static ToolInputSchema from_json(const json& j);
 };
 
-/**
- * @brief 工具定义
- */
+// 工具定义
 struct Tool {
     std::string name;                      // 工具名称
     std::string description;               // 工具描述
@@ -59,9 +53,7 @@ struct Tool {
     static Tool from_json(const json& j);
 };
 
-/**
- * @brief 工具调用结果内容（文本或图片等）
- */
+// 工具调用结果内容（文本或图片等）
 struct ContentItem {
     std::string type;      // "text", "image", "resource"
     std::optional<std::string> text;
@@ -73,9 +65,7 @@ struct ContentItem {
     static ContentItem from_json(const json& j);
 };
 
-/**
- * @brief 工具调用结果
- */
+// 工具调用结果
 struct ToolResult {
     std::vector<ContentItem> content;
     bool is_error = false;
@@ -84,11 +74,7 @@ struct ToolResult {
     static ToolResult from_json(const json& j);
 };
 
-// ===== Resource (资源) 相关类型 =====
-
-/**
- * @brief 资源定义
- */
+// 资源定义
 struct Resource {
     std::string uri;                           // 资源 URI (如 file:///path/to/file)
     std::string name;                          // 资源名称
@@ -99,9 +85,7 @@ struct Resource {
     static Resource from_json(const json& j);
 };
 
-/**
- * @brief 资源内容
- */
+// 资源内容
 struct ResourceContent {
     std::string uri;
     std::optional<std::string> mime_type;
@@ -112,11 +96,8 @@ struct ResourceContent {
     static ResourceContent from_json(const json& j);
 };
 
-// ===== Prompt (提示) 相关类型 =====
 
-/**
- * @brief 提示参数
- */
+// 提示参数
 struct PromptArgument {
     std::string name;
     std::optional<std::string> description;
@@ -126,9 +107,7 @@ struct PromptArgument {
     static PromptArgument from_json(const json& j);
 };
 
-/**
- * @brief 提示定义
- */
+// 提示定义
 struct Prompt {
     std::string name;
     std::optional<std::string> description;
@@ -138,9 +117,7 @@ struct Prompt {
     static Prompt from_json(const json& j);
 };
 
-/**
- * @brief 提示消息
- */
+// 提示消息
 struct PromptMessage {
     Role role;
     json content;
@@ -149,61 +126,57 @@ struct PromptMessage {
     static PromptMessage from_json(const json& j);
 };
 
-// ===== Initialization (初始化) 相关类型 =====
-
-/**
- * @brief 服务器能力
- */
+// 服务器能力
 struct ServerCapabilities {
+    // 工具能力
     struct ToolsCapability {
-        bool list_changed = false;
+        bool list_changed = false; // 工具列表是否发生变化
 
-        json to_json() const;
-        static ToolsCapability from_json(const json& j);
+        json to_json() const; // 转换为 JSON
+        static ToolsCapability from_json(const json& j); // 从 JSON 转换为 ToolsCapability
     };
 
+    // 资源能力
     struct ResourcesCapability {
-        bool subscribe = false;
-        bool list_changed = false;
+        bool subscribe = false; // 是否订阅资源
+        bool list_changed = false; // 资源列表是否发生变化
 
-        json to_json() const;
-        static ResourcesCapability from_json(const json& j);
+        json to_json() const; // 转换为 JSON
+        static ResourcesCapability from_json(const json& j); // 从 JSON 转换为 ResourcesCapability
     };
 
+    // 提示能力
     struct PromptsCapability {
-        bool list_changed = false;
+        bool list_changed = false; // 提示列表是否发生变化  
 
-        json to_json() const;
-        static PromptsCapability from_json(const json& j);
+        json to_json() const; // 转换为 JSON
+        static PromptsCapability from_json(const json& j); // 从 JSON 转换为 PromptsCapability
     };
 
-    std::optional<ToolsCapability> tools;
-    std::optional<ResourcesCapability> resources;
-    std::optional<PromptsCapability> prompts;
-    std::optional<json> logging;
+    std::optional<ToolsCapability> tools; // 工具能力
+    std::optional<ResourcesCapability> resources; // 资源能力
+    std::optional<PromptsCapability> prompts; // 提示能力
+    std::optional<json> logging; // 日志配置
 
-    json to_json() const;
+    json to_json() const; // 转换为 JSON
     static ServerCapabilities from_json(const json& j);
 };
 
-/**
- * @brief 服务器信息
- */
+
+// MCP 协议服务器信息
 struct ServerInfo {
-    std::string name;
-    std::string version;
+    std::string name; // 服务器名称
+    std::string version; // 服务器版本
 
     json to_json() const;
     static ServerInfo from_json(const json& j);
 };
 
-/**
- * @brief 初始化结果
- */
+// MCP 协议初始化结果
 struct InitializeResult {
-    std::string protocol_version;
-    ServerCapabilities capabilities;
-    ServerInfo server_info;
+    std::string protocol_version; // MCP 协议版本
+    ServerCapabilities capabilities; // 服务器能力
+    ServerInfo server_info; // 服务器信息
 
     json to_json() const;
     static InitializeResult from_json(const json& j);

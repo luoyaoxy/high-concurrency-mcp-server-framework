@@ -274,7 +274,7 @@ for (const auto& msg : messages) {
 
 ```bash
 cd build/src
-./mcp_full_http_server --port 8080
+./mcp_http_server --port 8080
 ```
 
 ### 支持的 JSON-RPC 方法
@@ -423,11 +423,11 @@ cd build/examples
 - 注册示例 Prompts（code_review, translate, summarize）
 - 演示如何调用这些功能
 
-### 2. MCP Full HTTP Server（HTTP 服务器）
+### 2. MCP HTTP Server（HTTP 服务器）
 
 ```bash
 cd build/src
-./mcp_full_http_server --port 8080
+./mcp_http_server --port 8080
 ```
 
 这是一个完整的 HTTP 服务器，支持所有 MCP 协议方法。

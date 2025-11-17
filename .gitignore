@@ -43,12 +43,11 @@ test_detail.xml
 
 # Build artifacts
 mcp_server
-mcp_http_server
-mcp_full_http_server
 config_demo
 simple_client
 http_client
 mcp_demo_server
+client_demo
 test_logger
 test_config
 test_json_rpc

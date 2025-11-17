@@ -1,45 +1,15 @@
-# Examples
+# ===================================================================
+# MCP 客户端 SDK 使用示例
+# ===================================================================
 
-# 查找 httplib (用于 HTTP 客户端)
-find_package(httplib CONFIG REQUIRED)
-
-# Configuration and Logging Demo
-add_executable(config_demo
-    config_demo.cpp
+# Client Demo - 完整的 MCP 客户端 SDK 示例
+# 演示如何使用 McpClient 调用 MCP 服务器的所有功能
+add_executable(client_demo
+    client_demo.cpp
 )
 
-target_link_libraries(config_demo
-    mcp_lib
-)
-
-# Simple JSON-RPC Client (stdio)
-add_executable(simple_client
-    simple_client.cpp
-)
-
-target_link_libraries(simple_client
-    PRIVATE
-    nlohmann_json::nlohmann_json
-)
-
-# HTTP JSON-RPC Client
-add_executable(http_client
-    http_client.cpp
-)
-
-target_link_libraries(http_client
-    PRIVATE
-    nlohmann_json::nlohmann_json
-    httplib::httplib
-)
-
-# MCP Demo Server - 展示 Tools/Resources/Prompts
-add_executable(mcp_demo_server
-    mcp_demo_server.cpp
-)
-
-target_link_libraries(mcp_demo_server
-    mcp_lib
+target_link_libraries(client_demo
+    mcp_client_sdk
 )
 
 # ===================================================================
@@ -49,5 +19,5 @@ target_link_libraries(mcp_demo_server
 # add_executable(another_example
 #     another_example.cpp
 # )
-# target_link_libraries(another_example mcp_lib)
+# target_link_libraries(another_example mcp_client_sdk)
 # ===================================================================

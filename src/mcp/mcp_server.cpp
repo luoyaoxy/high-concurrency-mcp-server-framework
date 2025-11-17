@@ -1,15 +1,11 @@
-/**
- * @file mcp_server.cpp
- * @brief MCP 服务器核心类实现
- */
+// MCP 服务器核心类实现
 
 #include "mcp_server.h"
 #include <stdexcept>
 
 namespace mcp {
 
-// ===== 构造函数 =====
-
+// 构造函数
 McpServer::McpServer(const std::string& name, const std::string& version) {
     server_info_.name = name;
     server_info_.version = version;
@@ -19,8 +15,6 @@ McpServer::McpServer(const std::string& name, const std::string& version) {
     capabilities_.resources = ServerCapabilities::ResourcesCapability{false, false};
     capabilities_.prompts = ServerCapabilities::PromptsCapability{false};
 }
-
-// ===== 初始化相关 =====
 
 InitializeResult McpServer::get_initialize_result() const {
     InitializeResult result;
@@ -33,8 +27,6 @@ InitializeResult McpServer::get_initialize_result() const {
 void McpServer::set_capabilities(const ServerCapabilities& capabilities) {
     capabilities_ = capabilities;
 }
-
-// ===== Tools 管理 =====
 
 void McpServer::register_tool(const Tool& tool, ToolHandler handler) {
     std::lock_guard<std::mutex> lock(tools_mutex_);
@@ -87,8 +79,6 @@ bool McpServer::has_tool(const std::string& name) const {
     return tools_.find(name) != tools_.end();
 }
 
-// ===== Resources 管理 =====
-
 void McpServer::register_resource(const Resource& resource, ResourceProvider provider) {
     std::lock_guard<std::mutex> lock(resources_mutex_);
 
@@ -128,8 +118,6 @@ bool McpServer::has_resource(const std::string& uri) const {
     std::lock_guard<std::mutex> lock(resources_mutex_);
     return resources_.find(uri) != resources_.end();
 }
-
-// ===== Prompts 管理 =====
 
 void McpServer::register_prompt(const Prompt& prompt, PromptGenerator generator) {
     std::lock_guard<std::mutex> lock(prompts_mutex_);

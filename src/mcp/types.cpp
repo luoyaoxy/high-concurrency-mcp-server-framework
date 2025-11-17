@@ -7,8 +7,6 @@
 
 namespace mcp {
 
-// ===== ToolInputSchema =====
-
 json ToolInputSchema::to_json() const {
     json j = {
         {"type", type},
@@ -34,8 +32,6 @@ ToolInputSchema ToolInputSchema::from_json(const json& j) {
     return schema;
 }
 
-// ===== Tool =====
-
 json Tool::to_json() const {
     return {
         {"name", name},
@@ -51,8 +47,6 @@ Tool Tool::from_json(const json& j) {
     tool.input_schema = ToolInputSchema::from_json(j.at("inputSchema"));
     return tool;
 }
-
-// ===== ContentItem =====
 
 json ContentItem::to_json() const {
     json j = {{"type", type}};
@@ -93,8 +87,6 @@ ContentItem ContentItem::from_json(const json& j) {
     return item;
 }
 
-// ===== ToolResult =====
-
 json ToolResult::to_json() const {
     json content_arr = json::array();
     for (const auto& item : content) {
@@ -123,8 +115,6 @@ ToolResult ToolResult::from_json(const json& j) {
 
     return result;
 }
-
-// ===== Resource =====
 
 json Resource::to_json() const {
     json j = {
@@ -157,8 +147,6 @@ Resource Resource::from_json(const json& j) {
     return res;
 }
 
-// ===== ResourceContent =====
-
 json ResourceContent::to_json() const {
     json j = {
         {"uri", uri},
@@ -190,8 +178,6 @@ ResourceContent ResourceContent::from_json(const json& j) {
     return content;
 }
 
-// ===== PromptArgument =====
-
 json PromptArgument::to_json() const {
     json j = {
         {"name", name},
@@ -216,8 +202,6 @@ PromptArgument PromptArgument::from_json(const json& j) {
 
     return arg;
 }
-
-// ===== Prompt =====
 
 json Prompt::to_json() const {
     json j = {{"name", name}};
@@ -254,8 +238,6 @@ Prompt Prompt::from_json(const json& j) {
     return prompt;
 }
 
-// ===== PromptMessage =====
-
 json PromptMessage::to_json() const {
     return {
         {"role", role == Role::User ? "user" : "assistant"},
@@ -272,8 +254,6 @@ PromptMessage PromptMessage::from_json(const json& j) {
 
     return msg;
 }
-
-// ===== ServerCapabilities =====
 
 json ServerCapabilities::ToolsCapability::to_json() const {
     return {{"listChanged", list_changed}};
@@ -347,8 +327,6 @@ ServerCapabilities ServerCapabilities::from_json(const json& j) {
     return cap;
 }
 
-// ===== ServerInfo =====
-
 json ServerInfo::to_json() const {
     return {
         {"name", name},
@@ -362,8 +340,6 @@ ServerInfo ServerInfo::from_json(const json& j) {
     info.version = j.at("version").get<std::string>();
     return info;
 }
-
-// ===== InitializeResult =====
 
 json InitializeResult::to_json() const {
     return {
