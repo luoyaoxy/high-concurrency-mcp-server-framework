@@ -2,6 +2,7 @@
 
 #include "mcp_server.h"
 #include <stdexcept>
+#include "logger.h"
 
 namespace mcp {
 
@@ -34,6 +35,7 @@ void McpServer::register_tool(const Tool& tool, ToolHandler handler) {
     if (tools_.find(tool.name) != tools_.end()) {
         throw std::runtime_error("Tool already registered: " + tool.name);
     }
+    // MCP_LOG_INFO("Use tool name {}", tool.name);
 
     tools_[tool.name] = tool;
     tool_handlers_[tool.name] = std::move(handler);
@@ -59,17 +61,58 @@ ToolResult McpServer::call_tool(const std::string& name, const json& arguments) 
     if (it == tool_handlers_.end()) {
         throw std::runtime_error("Tool not found: " + name);
     }
+    MCP_LOG_INFO("Use Tool: {}", name);
+
+    // 推送工具调用开始事件
+    {
+        std::lock_guard<std::mutex> sse_lock(sse_mutex_);
+        if (sse_callback_) {
+            sse_callback_(json({
+                {"type", "tool_call_start"},
+                {"tool", name},
+                {"arguments", arguments},
+                {"timestamp", std::time(nullptr)}
+            }));
+        }
+    }
 
     try {
-        return it->second(arguments);
+        auto result = it->second(arguments);
+
+        // 推送工具调用完成事件
+        {
+            std::lock_guard<std::mutex> sse_lock(sse_mutex_);
+            if (sse_callback_) {
+                sse_callback_(json({
+                    {"type", "tool_call_end"},
+                    {"tool", name},
+                    {"success", !result.is_error},
+                    {"timestamp", std::time(nullptr)}
+                }));
+            }
+        }
+
+        return result;
     } catch (const std::exception& e) {
-        // 将异常转换为错误结果
+        // 推送工具调用错误事件
+        {
+            std::lock_guard<std::mutex> sse_lock(sse_mutex_);
+            if (sse_callback_) {
+                sse_callback_(json({
+                    {"type", "tool_call_error"},
+                    {"tool", name},
+                    {"error", e.what()},
+                    {"timestamp", std::time(nullptr)}
+                }));
+            }
+        }
+
         ToolResult error_result;
         error_result.is_error = true;
-        error_result.content.push_back(ContentItem{
-            .type = "text",
-            .text = std::string("Error calling tool: ") + e.what()
-        });
+        ContentItem item;
+        item.type = "text";
+        item.text = std::string("Error calling tool: ") + e.what();
+        error_result.content.push_back(item);
         return error_result;
     }
 }
@@ -85,6 +128,7 @@ void McpServer::register_resource(const Resource& resource, ResourceProvider pro
     if (resources_.find(resource.uri) != resources_.end()) {
         throw std::runtime_error("Resource already registered: " + resource.uri);
     }
+    // MCP_LOG_INFO("Use resources_ {}", resource.uri);
 
     resources_[resource.uri] = resource;
     resource_providers_[resource.uri] = std::move(provider);
@@ -110,6 +154,7 @@ ResourceContent McpServer::read_resource(const std::string& uri) {
     if (it == resource_providers_.end()) {
         throw std::runtime_error("Resource not found: " + uri);
     }
+    MCP_LOG_INFO("Use Resource: {}", uri);
 
     return it->second(uri);
 }
@@ -150,13 +195,18 @@ std::vector<PromptMessage> McpServer::get_prompt(const std::string& name, const 
     if (it == prompt_generators_.end()) {
         throw std::runtime_error("Prompt not found: " + name);
     }
-
+    MCP_LOG_INFO("Use Prompt: {}", name);
     return it->second(arguments);
 }
 
 bool McpServer::has_prompt(const std::string& name) const {
     std::lock_guard<std::mutex> lock(prompts_mutex_);
     return prompts_.find(name) != prompts_.end();
+}
+
+void McpServer::set_sse_callback(SseEventCallback callback) {
+    std::lock_guard<std::mutex> lock(sse_mutex_);
+    sse_callback_ = std::move(callback);
 }
 
 } // namespace mcp

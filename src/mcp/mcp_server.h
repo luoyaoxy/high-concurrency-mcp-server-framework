@@ -76,6 +76,10 @@ public:
     // 检查提示词是否存在
     bool has_prompt(const std::string& name) const;
 
+    // SSE 事件回调
+    using SseEventCallback = std::function<void(const json&)>;
+    void set_sse_callback(SseEventCallback callback);
+
 private:
     // 服务器信息
     ServerInfo server_info_;
@@ -97,6 +101,10 @@ private:
     std::unordered_map<std::string, Prompt> prompts_;
     std::unordered_map<std::string, PromptGenerator> prompt_generators_;
     mutable std::mutex prompts_mutex_;
+
+    // SSE 事件回调
+    SseEventCallback sse_callback_;
+    mutable std::mutex sse_mutex_;
 };
 
 } // namespace mcp

@@ -41,6 +41,10 @@ public:
 
     int get_port() const { return port_; }
 
+    using SseCallback = std::function<void(const std::function<void(const std::string&)>&)>;
+
+    void register_sse_endpoint(const std::string& path, SseCallback callback);
+
 private:
     JsonRpcDispatcher dispatcher_;
     std::string host_;

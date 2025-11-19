@@ -20,9 +20,9 @@ public:
 
     Impl() {
         // 设置日志回调
-        server.set_logger([](const httplib::Request& req, const httplib::Response& res) {
-            MCP_LOG_INFO("HTTP {} {} -> {}", req.method, req.path, res.status);
-        });
+        // server.set_logger([](const httplib::Request& req, const httplib::Response& res) {
+        //     MCP_LOG_INFO("HTTP {} {} -> {}", req.method, req.path, res.status);
+        // });
 
         // 设置错误处理
         server.set_error_handler([](const httplib::Request& /*req*/, httplib::Response& res) {
@@ -61,7 +61,7 @@ HttpJsonRpcServer::HttpJsonRpcServer(
 
     // 注册 POST /jsonrpc 端点
     impl_->server.Post("/jsonrpc", [this](const httplib::Request& req, httplib::Response& res) {
-        MCP_LOG_DEBUG("Received JSON-RPC request, body size: {}", req.body.size());
+        // MCP_LOG_DEBUG("Received JSON-RPC request, body size: {}", req.body.size());
 
         // 设置 CORS 头
         res.set_header("Access-Control-Allow-Origin", "*");
@@ -112,10 +112,40 @@ HttpJsonRpcServer::HttpJsonRpcServer(
             {"endpoints", {
                 {{"path", "/jsonrpc"}, {"method", "POST"}, {"description", "JSON-RPC 2.0 endpoint"}},
                 {{"path", "/health"}, {"method", "GET"}, {"description", "Health check"}},
+                {{"path", "/sse/events"}, {"method", "GET"}, {"description", "Server status event stream (SSE)"}},
+                {{"path", "/sse/tool_calls"}, {"method", "GET"}, {"description", "Tool call monitoring stream (SSE)"}},
                 {{"path", "/"}, {"method", "GET"}, {"description", "Server information"}}
             }}
         };
         res.set_content(info.dump(2), "application/json");
+    });
+}
+
+void HttpJsonRpcServer::register_sse_endpoint(const std::string& path, SseCallback callback) {
+    impl_->server.Get(path, [callback](const httplib::Request& /*req*/, httplib::Response& res) {
+        res.set_header("Content-Type", "text/event-stream");
+        res.set_header("Cache-Control", "no-cache");
+        res.set_header("Connection", "keep-alive");
+        res.set_header("Access-Control-Allow-Origin", "*");
+
+        res.set_content_provider(
+            "text/event-stream",
+            [callback](size_t /*offset*/, httplib::DataSink& sink) {
+                auto send_event = [&sink](const std::string& data) {
+                    std::string event = "data: " + data + "\n\n";
+                    sink.write(event.c_str(), event.size());
+                };
+
+                try {
+                    callback(send_event);
+                } catch (const std::exception& e) {
+                    MCP_LOG_ERROR("SSE callback error: {}", e.what());
+                }
+
+                sink.done();
+                return true;
+            }
+        );
     });
 }
 
@@ -130,10 +160,6 @@ void HttpJsonRpcServer::run() {
     }
 
     MCP_LOG_INFO("Starting HTTP JSON-RPC server on {}:{}", host_, port_);
-    MCP_LOG_INFO("Endpoints:");
-    MCP_LOG_INFO("  POST http://{}:{}/jsonrpc - JSON-RPC 2.0 endpoint", host_, port_);
-    MCP_LOG_INFO("  GET  http://{}:{}/health   - Health check", host_, port_);
-    MCP_LOG_INFO("  GET  http://{}:{}/ - Server information", host_, port_);
 
     // 启动服务器（阻塞）
     if (!impl_->server.listen(host_, port_)) {
@@ -309,7 +335,7 @@ std::string HttpJsonRpcServer::handle_request(const std::string& request_body) {
         }
 
         std::string response_str = response_json.dump();
-        MCP_LOG_DEBUG("Response: {}", response_str);
+        // MCP_LOG_DEBUG("Response: {}", response_str);
         return response_str;
 
     } catch (const json::parse_error& e) {

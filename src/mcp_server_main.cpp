@@ -1,17 +1,4 @@
-/**
- * @file mcp_server_main.cpp
- * @brief 统一的 MCP 服务器 - 同时支持 HTTP 和 stdio 传输
- *
- * 使用方法:
- *   # HTTP 模式（默认）
- *   ./mcp_server --mode http --port 8080
- *
- *   # stdio 模式
- *   ./mcp_server --mode stdio
- *
- *   # 同时启动两种模式
- *   ./mcp_server --mode both --port 8080
- */
+
 
 #include "config.h"
 #include "logger.h"
@@ -386,6 +373,65 @@ void run_http_mode(McpServer& mcp_server, const std::string& host, int port) {
     auto dispatcher = create_dispatcher(mcp_server);
     g_http_server = std::make_unique<HttpJsonRpcServer>(std::move(dispatcher), host, port);
 
+    // SSE 事件队列
+    struct {
+        std::vector<json> events;
+        std::mutex mutex;
+        std::condition_variable cv;
+    } event_queue;
+
+    // 设置 MCP 服务器的 SSE 回调
+    mcp_server.set_sse_callback([&event_queue](const json& event) {
+        std::lock_guard<std::mutex> lock(event_queue.mutex);
+        event_queue.events.push_back(event);
+        event_queue.cv.notify_all();
+    });
+
+    // 注册 SSE 端点 - 服务器事件流
+    g_http_server->register_sse_endpoint("/sse/events", [&mcp_server](const auto& send) {
+        MCP_LOG_INFO("SSE events client connected");
+        send(json({{"type", "connected"}, {"message", "Server events stream"}}).dump());
+
+        int count = 0;
+        while (g_running.load()) {
+            json status = {
+                {"type", "server_status"},
+                {"timestamp", std::time(nullptr)},
+                {"tools_count", mcp_server.list_tools().size()},
+                {"resources_count", mcp_server.list_resources().size()},
+                {"prompts_count", mcp_server.list_prompts().size()},
+                {"uptime_seconds", count++}
+            };
+            send(status.dump());
+            std::this_thread::sleep_for(std::chrono::seconds(5));
+        }
+
+        MCP_LOG_INFO("SSE events client disconnected");
+    });
+
+    // 注册 SSE 端点 - 工具调用实时流
+    g_http_server->register_sse_endpoint("/sse/tool_calls", [&event_queue](const auto& send) {
+        MCP_LOG_INFO("SSE tool_calls client connected");
+        send(json({{"type", "connected"}, {"message", "Tool calls monitoring"}}).dump());
+
+        while (g_running.load()) {
+            std::unique_lock<std::mutex> lock(event_queue.mutex);
+
+            // 等待事件或超时
+            event_queue.cv.wait_for(lock, std::chrono::seconds(1), [&event_queue] {
+                return !event_queue.events.empty();
+            });
+
+            // 发送所有待处理事件
+            for (const auto& event : event_queue.events) {
+                send(event.dump());
+            }
+            event_queue.events.clear();
+        }
+
+        MCP_LOG_INFO("SSE tool_calls client disconnected");
+    });
+
     // 启动服务器（阻塞）
     g_http_server->run();
 
@@ -480,8 +526,7 @@ int main(int argc, char* argv[]) {
                  MCP_CONFIG.GetLogConsoleOutput());
     MCP_LOG_SET_LEVEL(StringToLogLevel(MCP_CONFIG.GetLogLevel()));
 
-    MCP_LOG_INFO("=== MCP Server ===");
-    MCP_LOG_INFO("Mode: {}", mode);
+   
     if (mode == "http" || mode == "both") {
         MCP_LOG_INFO("HTTP: {}:{}", host, port);
     }

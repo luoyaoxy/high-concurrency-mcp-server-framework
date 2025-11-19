@@ -29,7 +29,6 @@ bool Config::LoadFromFile(const std::string& config_file_path) {
         }
 
         loaded_ = true;
-        std::cout << "Config loaded successfully: " << config_file_path << std::endl;
         return true;
 
     } catch (const json::parse_error& e) {
