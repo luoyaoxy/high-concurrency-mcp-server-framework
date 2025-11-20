@@ -127,8 +127,9 @@ void HttpJsonRpcServer::register_sse_endpoint(const std::string& path, SseCallba
         res.set_header("Cache-Control", "no-cache");
         res.set_header("Connection", "keep-alive");
         res.set_header("Access-Control-Allow-Origin", "*");
+        res.set_header("X-Accel-Buffering", "no");
 
-        res.set_content_provider(
+        res.set_chunked_content_provider(
             "text/event-stream",
             [callback](size_t /*offset*/, httplib::DataSink& sink) {
                 auto send_event = [&sink](const std::string& data) {
@@ -142,7 +143,6 @@ void HttpJsonRpcServer::register_sse_endpoint(const std::string& path, SseCallba
                     MCP_LOG_ERROR("SSE callback error: {}", e.what());
                 }
 
-                sink.done();
                 return true;
             }
         );
