@@ -182,7 +182,8 @@ def interactive_mode():
             # 添加用户消息
             messages.append({"role": "user", "content": user_input})
 
-            # 调用 AI
+            # 调用 AI（添加调试信息）
+            print("🤖 AI 思考中...", flush=True)
             response = ollama.chat(messages, tools=ollama_tools)
             message = response.get("message", {})
 
