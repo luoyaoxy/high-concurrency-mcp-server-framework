@@ -1,8 +1,3 @@
-/**
- * @file http_jsonrpc.h
- * @brief 基于 HTTP 的 JSON-RPC 2.0 服务器
- * 支持 HTTP POST 请求和响应
- */
 
 #pragma once
 
