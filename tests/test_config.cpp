@@ -22,7 +22,31 @@ protected:
             temp_dir_ + "missing_section_config.json",
             temp_dir_ + "min_port_config.json",
             temp_dir_ + "max_port_config.json",
-            temp_dir_ + "common_port_config.json"
+            temp_dir_ + "common_port_config.json",
+
+            temp_dir_ + "runtime_defaults_config.json",
+
+            temp_dir_ + "invalid_worker_threads_config.json",
+            temp_dir_ + "invalid_pending_tasks_config.json",
+            temp_dir_ + "invalid_request_timeout_config.json",
+
+            temp_dir_ + "invalid_tool_workers_config.json",
+            temp_dir_ + "invalid_tool_pending_tasks_config.json",
+
+            temp_dir_ + "invalid_resource_workers_config.json",
+            temp_dir_ + "invalid_resource_pending_tasks_config.json",
+
+            temp_dir_ + "invalid_prompt_workers_config.json",
+            temp_dir_ + "invalid_prompt_pending_tasks_config.json",
+
+            // SSE 配置非法值测试生成的临时文件。
+            temp_dir_ + "invalid_sse_max_clients_config.json",
+            temp_dir_ + "invalid_sse_pending_events_config.json",
+
+            // 独立 SSE 服务配置非法值测试生成的临时文件。
+            temp_dir_ + "invalid_sse_port_config.json",
+            temp_dir_ + "conflicting_sse_port_config.json",
+            temp_dir_ + "invalid_sse_workers_config.json"
         };
 
         for (const auto& file : temp_files) {
@@ -45,7 +69,7 @@ TEST_F(ConfigTest, LoadConfigFileTest) {
     EXPECT_TRUE(config.IsLoaded());
 
     // 验证端口号
-    EXPECT_EQ(config.GetServerPort(), 8080);
+    EXPECT_EQ(config.GetServerPort(), 8089);
 }
 
 // 测试加载不存在的配置文件
@@ -73,14 +97,14 @@ TEST_F(ConfigTest, GetServerPortTest) {
     Config& config = Config::GetInstance();
     config.LoadFromFile(config_file_);
 
-    EXPECT_EQ(config.GetServerPort(), 8080);
+    EXPECT_EQ(config.GetServerPort(), 8089);
 }
 
 // 测试配置宏
 TEST_F(ConfigTest, ConfigMacroTest) {
     MCP_CONFIG.LoadFromFile(config_file_);
 
-    EXPECT_EQ(MCP_CONFIG.GetServerPort(), 8080);
+    EXPECT_EQ(MCP_CONFIG.GetServerPort(), 8089);
     EXPECT_TRUE(MCP_CONFIG.IsLoaded());
 }
 
@@ -162,6 +186,317 @@ TEST_F(ConfigTest, ValidPortRangesTest) {
 
     EXPECT_TRUE(config.LoadFromFile(common_port_file));
     EXPECT_EQ(config.GetServerPort(), 3000);
+}
+
+TEST_F(ConfigTest, ReadsTaskRuntimeConfiguration) {
+    Config& config = Config::GetInstance();
+
+    ASSERT_TRUE(config.LoadFromFile(config_file_));
+
+    EXPECT_EQ(config.GetWorkerThreads(), 4u);
+    EXPECT_EQ(config.GetMaxPendingTasks(), 128u);
+    EXPECT_EQ(config.GetRequestTimeoutMs(), 30000);
+
+    EXPECT_EQ(config.GetToolWorkers(), 2u);
+    EXPECT_EQ(config.GetToolMaxPendingTasks(), 32u);
+    EXPECT_EQ(config.GetToolCircuitFailureThreshold(), 5u);
+    EXPECT_EQ(config.GetToolCircuitOpenMs(), 30000);
+
+    EXPECT_EQ(config.GetResourceWorkers(), 2u);
+    EXPECT_EQ(config.GetResourceMaxPendingTasks(), 32u);
+
+    // 验证配置文件中的 prompt 专用执行池参数。
+    EXPECT_EQ(config.GetPromptWorkers(), 2u);
+    EXPECT_EQ(config.GetPromptMaxPendingTasks(), 32u);
+
+    // 验证配置文件中的 SSE 资源上限。
+    EXPECT_EQ(config.GetSseMaxClients(), 16u);
+    EXPECT_EQ(config.GetSseMaxPendingEventsPerClient(), 128u);
+    EXPECT_EQ(config.GetSseReplayBufferEvents(), 256u);
+
+    // 验证独立 SSE 服务的端口与专用 worker 配置。
+    EXPECT_EQ(config.GetSsePort(), 8090);
+    EXPECT_EQ(config.GetSseWorkers(), 2u);
+}
+
+TEST_F(ConfigTest, UsesTaskRuntimeDefaults) {
+    std::string defaults_file =
+        temp_dir_ + "runtime_defaults_config.json";
+
+    std::ofstream file(defaults_file);
+    file << R"({
+        "server": {
+            "port": 8080
+        }
+    })";
+    file.close();
+
+    Config& config = Config::GetInstance();
+
+    ASSERT_TRUE(config.LoadFromFile(defaults_file));
+
+    // 缺省并发参数应回退到安全默认值。
+    EXPECT_EQ(config.GetWorkerThreads(), 4u);
+    EXPECT_EQ(config.GetMaxPendingTasks(), 128u);
+    EXPECT_EQ(config.GetRequestTimeoutMs(), 30000);
+
+    EXPECT_EQ(config.GetToolWorkers(), 2u);
+    EXPECT_EQ(config.GetToolMaxPendingTasks(), 32u);
+
+    EXPECT_EQ(config.GetResourceWorkers(), 2u);
+    EXPECT_EQ(config.GetResourceMaxPendingTasks(), 32u);
+
+    // 验证缺省 prompt 参数会回退到安全默认值。
+    EXPECT_EQ(config.GetPromptWorkers(), 2u);
+    EXPECT_EQ(config.GetPromptMaxPendingTasks(), 32u);
+
+    // 验证旧配置未填写 SSE 字段时的安全默认值。
+    EXPECT_EQ(config.GetSseMaxClients(), 16u);
+    EXPECT_EQ(config.GetSseMaxPendingEventsPerClient(), 128u);
+
+    // 验证旧配置未填写时，独立 SSE 服务使用安全默认值。
+    EXPECT_EQ(config.GetSsePort(), 8090);
+    EXPECT_EQ(config.GetSseWorkers(), 2u);
+}
+
+TEST_F(ConfigTest, RejectsInvalidWorkerThreads) {
+    std::string file_path =
+        temp_dir_ + "invalid_worker_threads_config.json";
+
+    std::ofstream file(file_path);
+    file << R"({
+        "server": {
+            "port": 8080,
+            "worker_threads": 0
+        }
+    })";
+    file.close();
+
+    EXPECT_FALSE(MCP_CONFIG.LoadFromFile(file_path));
+}
+
+TEST_F(ConfigTest, RejectsInvalidMaxPendingTasks) {
+    std::string file_path =
+        temp_dir_ + "invalid_pending_tasks_config.json";
+
+    std::ofstream file(file_path);
+    file << R"({
+        "server": {
+            "port": 8080,
+            "max_pending_tasks": 0
+        }
+    })";
+    file.close();
+
+    EXPECT_FALSE(MCP_CONFIG.LoadFromFile(file_path));
+}
+
+TEST_F(ConfigTest, RejectsInvalidRequestTimeout) {
+    std::string file_path =
+        temp_dir_ + "invalid_request_timeout_config.json";
+
+    std::ofstream file(file_path);
+    file << R"({
+        "server": {
+            "port": 8080,
+            "request_timeout_ms": 0
+        }
+    })";
+    file.close();
+
+    EXPECT_FALSE(MCP_CONFIG.LoadFromFile(file_path));
+}
+
+
+TEST_F(ConfigTest, RejectsInvalidToolWorkers) {
+    std::string file_path =
+        temp_dir_ + "invalid_tool_workers_config.json";
+
+    std::ofstream file(file_path);
+    file << R"({
+        "server": {
+            "port": 8080,
+            "tool_workers": 0
+        }
+    })";
+    file.close();
+
+    EXPECT_FALSE(MCP_CONFIG.LoadFromFile(file_path));
+}
+
+TEST_F(ConfigTest, RejectsInvalidToolMaxPendingTasks) {
+    std::string file_path =
+        temp_dir_ + "invalid_tool_pending_tasks_config.json";
+
+    std::ofstream file(file_path);
+    file << R"({
+        "server": {
+            "port": 8080,
+            "tool_max_pending_tasks": 0
+        }
+    })";
+    file.close();
+
+    EXPECT_FALSE(MCP_CONFIG.LoadFromFile(file_path));
+}
+
+TEST_F(ConfigTest, RejectsInvalidResourceWorkers) {
+    std::string file_path =
+        temp_dir_ + "invalid_resource_workers_config.json";
+
+    std::ofstream file(file_path);
+    file << R"({
+        "server": {
+            "port": 8080,
+            "resource_workers": 0
+        }
+    })";
+    file.close();
+
+    EXPECT_FALSE(MCP_CONFIG.LoadFromFile(file_path));
+}
+
+TEST_F(ConfigTest, RejectsInvalidPromptWorkers) {
+    // 使用 TearDown() 会清理的临时配置文件。
+    std::string file_path =
+        temp_dir_ + "invalid_prompt_workers_config.json";
+
+    std::ofstream file(file_path);
+    file << R"({
+        "server": {
+            "port": 8080,
+            "prompt_workers": 0
+        }
+    })";
+    file.close();
+
+    // 0 个 worker 无法消费 prompt 队列，因此配置应被拒绝。
+    EXPECT_FALSE(MCP_CONFIG.LoadFromFile(file_path));
+}
+
+TEST_F(ConfigTest, RejectsInvalidPromptMaxPendingTasks) {
+    // 使用 TearDown() 会清理的临时配置文件。
+    std::string file_path =
+        temp_dir_ + "invalid_prompt_pending_tasks_config.json";
+
+    std::ofstream file(file_path);
+    file << R"({
+        "server": {
+            "port": 8080,
+            "prompt_max_pending_tasks": 0
+        }
+    })";
+    file.close();
+
+    // 0 容量队列不能接收任何 prompt 任务，因此配置应被拒绝。
+    EXPECT_FALSE(MCP_CONFIG.LoadFromFile(file_path));
+}
+
+TEST_F(ConfigTest, RejectsInvalidSseMaxClients) {
+    // 使用 TearDown() 自动清理的临时配置文件。
+    std::string file_path =
+        temp_dir_ + "invalid_sse_max_clients_config.json";
+
+    std::ofstream file(file_path);
+    file << R"({
+        "server": {
+            "port": 8080,
+            "sse_max_clients": 0
+        }
+    })";
+    file.close();
+
+    // 0 个允许客户端没有实际意义，应在启动前拒绝该配置。
+    EXPECT_FALSE(MCP_CONFIG.LoadFromFile(file_path));
+}
+
+TEST_F(ConfigTest, RejectsInvalidSseMaxPendingEventsPerClient) {
+    // 使用 TearDown() 自动清理的临时配置文件。
+    std::string file_path =
+        temp_dir_ + "invalid_sse_pending_events_config.json";
+
+    std::ofstream file(file_path);
+    file << R"({
+        "server": {
+            "port": 8080,
+            "sse_max_pending_events_per_client": 0
+        }
+    })";
+    file.close();
+
+    // 0 容量无法缓存事件，应在启动前拒绝该配置。
+    EXPECT_FALSE(MCP_CONFIG.LoadFromFile(file_path));
+}
+
+TEST_F(ConfigTest, RejectsInvalidSsePort) {
+    // 使用 TearDown() 自动清理的临时配置文件。
+    std::string file_path =
+        temp_dir_ + "invalid_sse_port_config.json";
+
+    std::ofstream file(file_path);
+    file << R"({
+        "server": {
+            "port": 8080,
+            "sse_port": 0
+        }
+    })";
+    file.close();
+
+    // TCP 端口不能为 0，配置加载应失败。
+    EXPECT_FALSE(MCP_CONFIG.LoadFromFile(file_path));
+}
+
+TEST_F(ConfigTest, RejectsSsePortThatConflictsWithServerPort) {
+    // 使用与其他 SSE 端口测试隔离的临时配置文件。
+    std::string file_path =
+        temp_dir_ + "conflicting_sse_port_config.json";
+
+    std::ofstream file(file_path);
+    file << R"({
+        "server": {
+            "port": 8080,
+            "sse_port": 8080
+        }
+    })";
+    file.close();
+
+    // 两个 HTTP 服务不能监听同一个端口。
+    EXPECT_FALSE(MCP_CONFIG.LoadFromFile(file_path));
+}
+
+TEST_F(ConfigTest, RejectsInvalidSseWorkers) {
+    // 使用 TearDown() 自动清理的临时配置文件。
+    std::string file_path =
+        temp_dir_ + "invalid_sse_workers_config.json";
+
+    std::ofstream file(file_path);
+    file << R"({
+        "server": {
+            "port": 8080,
+            "sse_port": 8090,
+            "sse_workers": 0
+        }
+    })";
+    file.close();
+
+    // 0 个 worker 无法处理任何 SSE 长连接，应拒绝该配置。
+    EXPECT_FALSE(MCP_CONFIG.LoadFromFile(file_path));
+}
+
+TEST_F(ConfigTest, RejectsInvalidResourceMaxPendingTasks) {
+    std::string file_path =
+        temp_dir_ + "invalid_resource_pending_tasks_config.json";
+
+    std::ofstream file(file_path);
+    file << R"({
+        "server": {
+            "port": 8080,
+            "resource_max_pending_tasks": 0
+        }
+    })";
+    file.close();
+
+    EXPECT_FALSE(MCP_CONFIG.LoadFromFile(file_path));
 }
 
 // ===================================================================

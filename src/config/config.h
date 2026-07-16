@@ -11,6 +11,8 @@
 #include <string>
 #include <memory>
 
+#include <cstddef>
+
 namespace mcp {
 
 using json = nlohmann::json;
@@ -35,6 +37,31 @@ public:
     // 读取服务器端口（要求在校验通过后使用）
     // 若未加载或配置不合法，建议调用方在外层处理
     int GetServerPort() const;
+
+    std::size_t GetWorkerThreads() const;
+    std::size_t GetMaxPendingTasks() const;
+    int GetRequestTimeoutMs() const;
+
+    std::size_t GetToolWorkers() const;
+    std::size_t GetToolMaxPendingTasks() const;
+
+    std::size_t GetToolCircuitFailureThreshold() const;
+    int GetToolCircuitOpenMs() const;
+
+    std::size_t GetResourceWorkers() const;
+    std::size_t GetResourceMaxPendingTasks() const;
+
+    std::size_t GetPromptWorkers() const;
+    std::size_t GetPromptMaxPendingTasks() const;
+
+    // SSE 长连接与单客户端事件积压的限制。
+    std::size_t GetSseMaxClients() const;
+    std::size_t GetSseMaxPendingEventsPerClient() const;
+    std::size_t GetSseReplayBufferEvents() const;
+
+    // 独立 SSE HTTP 服务的监听端口与专用线程数。
+    int GetSsePort() const;
+    std::size_t GetSseWorkers() const;
 
     // ===================================================================
     // 日志配置获取方法

@@ -11,6 +11,14 @@
 #include <httplib.h>
 #include <nlohmann/json.hpp>
 
+#include "jsonrpc_task.h"
+
+#include <stdexcept>
+
+#include <chrono>
+#include <optional>
+#include <vector>
+
 namespace mcp {
 
 // Pimpl 实现类
@@ -39,24 +47,31 @@ public:
     }
 };
 
-// 构造函数（使用配置文件）
-HttpJsonRpcServer::HttpJsonRpcServer(JsonRpcDispatcher dispatcher)
-    : HttpJsonRpcServer(std::move(dispatcher), "0.0.0.0", MCP_CONFIG.GetServerPort())
-{
+HttpJsonRpcServer::HttpJsonRpcServer(
+    std::shared_ptr<JsonRpcTaskRuntime> runtime
+)
+    : HttpJsonRpcServer(
+        std::move(runtime),
+        "0.0.0.0",
+        MCP_CONFIG.GetServerPort()
+    ) {
     MCP_LOG_INFO("HTTP JSON-RPC server initialized from config");
 }
 
-// 构造函数（手动指定参数）
 HttpJsonRpcServer::HttpJsonRpcServer(
-    JsonRpcDispatcher dispatcher,
+    std::shared_ptr<JsonRpcTaskRuntime> runtime,
     const std::string& host,
     int port
 )
-    : dispatcher_(std::move(dispatcher))
+    : runtime_(std::move(runtime))
     , host_(host)
     , port_(port)
     , impl_(std::make_unique<Impl>())
 {
+    if (!runtime_) {
+        throw std::invalid_argument("JSON-RPC task runtime is required");
+    }
+
     MCP_LOG_INFO("HTTP JSON-RPC server created on {}:{}", host_, port_);
 
     // 注册 POST /jsonrpc 端点
@@ -112,40 +127,10 @@ HttpJsonRpcServer::HttpJsonRpcServer(
             {"endpoints", {
                 {{"path", "/jsonrpc"}, {"method", "POST"}, {"description", "JSON-RPC 2.0 endpoint"}},
                 {{"path", "/health"}, {"method", "GET"}, {"description", "Health check"}},
-                {{"path", "/sse/events"}, {"method", "GET"}, {"description", "Server status event stream (SSE)"}},
-                {{"path", "/sse/tool_calls"}, {"method", "GET"}, {"description", "Tool call monitoring stream (SSE)"}},
                 {{"path", "/"}, {"method", "GET"}, {"description", "Server information"}}
             }}
         };
         res.set_content(info.dump(2), "application/json");
-    });
-}
-
-void HttpJsonRpcServer::register_sse_endpoint(const std::string& path, SseCallback callback) {
-    impl_->server.Get(path, [callback](const httplib::Request& /*req*/, httplib::Response& res) {
-        res.set_header("Content-Type", "text/event-stream");
-        res.set_header("Cache-Control", "no-cache");
-        res.set_header("Connection", "keep-alive");
-        res.set_header("Access-Control-Allow-Origin", "*");
-        res.set_header("X-Accel-Buffering", "no");
-
-        res.set_chunked_content_provider(
-            "text/event-stream",
-            [callback](size_t /*offset*/, httplib::DataSink& sink) {
-                auto send_event = [&sink](const std::string& data) {
-                    std::string event = "data: " + data + "\n\n";
-                    sink.write(event.c_str(), event.size());
-                };
-
-                try {
-                    callback(send_event);
-                } catch (const std::exception& e) {
-                    MCP_LOG_ERROR("SSE callback error: {}", e.what());
-                }
-
-                return true;
-            }
-        );
     });
 }
 
@@ -183,15 +168,40 @@ void HttpJsonRpcServer::stop() {
 std::string HttpJsonRpcServer::handle_request(const std::string& request_body) {
     MCP_LOG_DEBUG("Request body: {}", request_body);
 
+    // 传输层请求数包含解析失败的 HTTP JSON-RPC 请求。
+    runtime_->record_http_request();
+
     try {
         // 解析 JSON
         json request_json = json::parse(request_body);
 
         // 检查是否为批量请求
         if (request_json.is_array()) {
+            runtime_->record_batch_request(request_json.size());
             json batch_response = json::array();
 
-            for (const auto& single_req_json : request_json) {
+            // 每个输入元素独立保存任务与结果，后续可并发 map、统一 gather。
+            struct BatchEntry {
+                std::size_t index;
+                std::optional<JsonRpcTask> task;
+                std::optional<TaskSubmission> submission;
+                std::optional<JsonRpcResponse> immediate_response;
+                std::optional<JsonRpcResponse> completed_response;
+                bool is_notification = false;
+            };
+
+            std::vector<BatchEntry> batch_entries;
+            batch_entries.reserve(request_json.size());
+
+            for (
+                std::size_t index = 0;
+                index < request_json.size();
+                ++index
+            ) {
+                const json& single_req_json = request_json[index];
+                batch_entries.push_back(BatchEntry{index});
+                BatchEntry& entry = batch_entries.back();
+
                 try {
                     // 从 JSON 解析请求
                     JsonRpcRequest req;
@@ -206,67 +216,129 @@ std::string HttpJsonRpcServer::handle_request(const std::string& request_body) {
                         req.params = single_req_json["params"];
                     }
 
-                    // 处理请求
-                    if (!req.id.has_value()) {
-                        // 通知请求，无需响应
-                        if (dispatcher_.hasHandler(req.method)) {
-                            dispatcher_.call(req.method, req.params.value_or(json::object()));
+                    // 批量中的取消命令同样不能排入业务队列。
+                    if (req.method == "$/cancelRequest") {
+                        if (
+                            !req.params.has_value() ||
+                            !req.params->is_object() ||
+                            !req.params->contains("id")
+                        ) {
+                            throw std::invalid_argument(
+                                "$/cancelRequest requires params.id"
+                            );
                         }
+
+                        runtime_->cancel_request((*req.params)["id"]);
+
+                        // 控制 notification 没有响应，不加入 batch_response。
+                        entry.is_notification = true;
+                        MCP_LOG_DEBUG(
+                            "HTTP batch_index={} processed $/cancelRequest",
+                            entry.index
+                        );
                         continue;
                     }
 
-                    // 构造响应
-                    JsonRpcResponse resp;
-                    resp.jsonrpc = "2.0";
-                    resp.id = *req.id;
+                    // 每个批量元素都有独立的超时截止时间。
+                    entry.task = make_jsonrpc_task(
+                        req,
+                        "http",
+                        std::chrono::milliseconds(MCP_CONFIG.GetRequestTimeoutMs())
+                    );
 
-                    try {
-                        if (!dispatcher_.hasHandler(req.method)) {
-                            resp.error = JsonRpcError{
-                                jsonrpc_errc::MethodNotFound,
-                                "Method not found: " + req.method,
-                                std::nullopt
-                            };
-                        } else {
-                            resp.result = dispatcher_.call(req.method, req.params.value_or(json::object()));
-                        }
-                    } catch (const std::exception& e) {
-                        resp.error = JsonRpcError{
-                            jsonrpc_errc::InternalError,
-                            e.what(),
-                            std::nullopt
-                        };
-                    }
+                    entry.is_notification = entry.task->is_notification();
+                    entry.submission = runtime_->submit(*entry.task);
 
-                    // 序列化响应
-                    json resp_json = {{"jsonrpc", resp.jsonrpc}, {"id", resp.id}};
-                    if (resp.result.has_value()) {
-                        resp_json["result"] = *resp.result;
-                    }
-                    if (resp.error.has_value()) {
-                        resp_json["error"] = {
-                            {"code", resp.error->code},
-                            {"message", resp.error->message}
-                        };
-                        if (resp.error->data.has_value()) {
-                            resp_json["error"]["data"] = *resp.error->data;
-                        }
-                    }
-
-                    batch_response.push_back(resp_json);
+                    // Map 阶段只提交任务；所有结果在后续 Gather 阶段统一收集。
+                    MCP_LOG_DEBUG(
+                        "[trace_id={}] batch_index={} submitted: task_id={}, method={}",
+                        entry.task->trace_id,
+                        entry.index,
+                        entry.task->task_id,
+                        entry.task->method
+                    );
 
                 } catch (const std::exception& e) {
                     MCP_LOG_ERROR("Error in batch request: {}", e.what());
-                    json error_resp = {
-                        {"jsonrpc", "2.0"},
-                        {"error", {
-                            {"code", jsonrpc_errc::InternalError},
-                            {"message", e.what()}
-                        }},
-                        {"id", nullptr}
+                    JsonRpcResponse error_response;
+                    error_response.jsonrpc = "2.0";
+                    error_response.id = nullptr;
+                    error_response.error = JsonRpcError{
+                        jsonrpc_errc::InternalError,
+                        e.what(),
+                        std::nullopt
                     };
-                    batch_response.push_back(error_resp);
+                    entry.immediate_response = error_response;
+                    MCP_LOG_DEBUG(
+                        "HTTP batch_index={} stored immediate error response",
+                        entry.index
+                    );
                 }
+            }
+
+            // Gather 阶段：所有任务已提交后，再统一取得各自结果。
+            for (BatchEntry& entry : batch_entries) {
+                if (entry.immediate_response.has_value()) {
+                    MCP_LOG_DEBUG(
+                        "HTTP batch_index={} gathered immediate response",
+                        entry.index
+                    );
+                    continue;
+                }
+
+                // notification 已执行，但 JSON-RPC 规定不返回响应。
+                if (entry.is_notification || !entry.submission.has_value()) {
+                    MCP_LOG_DEBUG(
+                        "HTTP batch_index={} gathered notification",
+                        entry.index
+                    );
+                    continue;
+                }
+
+                JsonRpcTaskResult response = runtime_->wait_for_result(
+                    *entry.task,
+                    entry.submission->result
+                );
+
+                if (response.has_value()) {
+                    entry.completed_response = std::move(*response);
+                }
+
+                MCP_LOG_DEBUG(
+                    "[trace_id={}] batch_index={} gathered: task_id={}, method={}, has_response={}",
+                    entry.task->trace_id,
+                    entry.index,
+                    entry.task->task_id,
+                    entry.task->method,
+                    response.has_value()
+                );
+            }
+
+            // 使用原始下标组装响应，完成顺序不会影响客户端看到的顺序。
+            std::vector<std::optional<JsonRpcResponse>> responses_by_index(
+                request_json.size()
+            );
+
+            for (const BatchEntry& entry : batch_entries) {
+                if (entry.immediate_response.has_value()) {
+                    responses_by_index[entry.index] =
+                        entry.immediate_response;
+                } else if (entry.completed_response.has_value()) {
+                    responses_by_index[entry.index] =
+                        entry.completed_response;
+                }
+            }
+
+            for (const auto& response : responses_by_index) {
+                if (response.has_value()) {
+                    batch_response.push_back(json(*response));
+                }
+            }
+
+            // 一个批量请求可能全部是 notification；此时不应返回 JSON-RPC 响应。
+            if (batch_response.empty()) {
+                MCP_LOG_DEBUG("HTTP batch contains only notifications, no response");
+                return "";
             }
 
             std::string response = batch_response.dump();
@@ -287,56 +359,46 @@ std::string HttpJsonRpcServer::handle_request(const std::string& request_body) {
             request.params = request_json["params"];
         }
 
-        // 如果是通知（无 id），执行后不返回响应
-        if (!request.id.has_value()) {
-            if (dispatcher_.hasHandler(request.method)) {
-                dispatcher_.call(request.method, request.params.value_or(json::object()));
+        // $/cancelRequest 是控制命令，直接作用于 runtime，
+        // 不应排入任何业务 lane。
+        if (request.method == "$/cancelRequest") {
+            if (
+                !request.params.has_value() ||
+                !request.params->is_object() ||
+                !request.params->contains("id")
+            ) {
+                throw std::invalid_argument(
+                    "$/cancelRequest requires params.id"
+                );
             }
-            MCP_LOG_DEBUG("Notification request, no response");
+
+            runtime_->cancel_request((*request.params)["id"]);
+
+            // $/cancelRequest 按 notification 使用，不返回 JSON-RPC 响应。
             return "";
         }
 
-        // 构造响应
-        JsonRpcResponse response;
-        response.jsonrpc = "2.0";
-        response.id = *request.id;
+        JsonRpcTask task = make_jsonrpc_task(
+            request,
+            "http",
+            std::chrono::milliseconds(MCP_CONFIG.GetRequestTimeoutMs())
+        );
 
-        try {
-            if (!dispatcher_.hasHandler(request.method)) {
-                response.error = JsonRpcError{
-                    jsonrpc_errc::MethodNotFound,
-                    "Method not found: " + request.method,
-                    std::nullopt
-                };
-            } else {
-                response.result = dispatcher_.call(request.method, request.params.value_or(json::object()));
-            }
-        } catch (const std::exception& e) {
-            response.error = JsonRpcError{
-                jsonrpc_errc::InternalError,
-                e.what(),
-                std::nullopt
-            };
+        TaskSubmission submission = runtime_->submit(task);
+        JsonRpcTaskResult response =
+            runtime_->wait_for_result(task, submission.result);
+
+        // notification 没有 id，执行后不返回 JSON-RPC 响应。
+        if (!response.has_value()) {
+            MCP_LOG_DEBUG(
+                "[trace_id={}] HTTP notification finished, no response",
+                task.trace_id
+            );
+            return "";
         }
 
-        // 序列化响应
-        json response_json = {{"jsonrpc", response.jsonrpc}, {"id", response.id}};
-        if (response.result.has_value()) {
-            response_json["result"] = *response.result;
-        }
-        if (response.error.has_value()) {
-            response_json["error"] = {
-                {"code", response.error->code},
-                {"message", response.error->message}
-            };
-            if (response.error->data.has_value()) {
-                response_json["error"]["data"] = *response.error->data;
-            }
-        }
-
-        std::string response_str = response_json.dump();
-        // MCP_LOG_DEBUG("Response: {}", response_str);
-        return response_str;
+        // 复用已有 JsonRpcResponse 的 JSON 序列化定义。
+        return json(*response).dump();
 
     } catch (const json::parse_error& e) {
         MCP_LOG_ERROR("JSON parse error: {}", e.what());

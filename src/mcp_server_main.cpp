@@ -3,8 +3,17 @@
 #include "config.h"
 #include "logger.h"
 #include "http_jsonrpc.h"
+#include "http_sse_server.h"
 #include "jsonrpc.h"
+#include "jsonrpc_request_context.h"
 #include "mcp_server.h"
+#include "tool_circuit_breaker.h"
+#include "tool_execution_error.h"
+#include "weather_client.h"
+
+#include "jsonrpc_task_runtime.h"
+
+#include "sse_event_hub.h"
 
 #include <iostream>
 #include <csignal>
@@ -15,11 +24,67 @@
 #include <fstream>
 #include <sstream>
 
+#include <array>
+#include <filesystem>
+#include <functional>
+
+
+
 using namespace mcp;
 
 // 全局服务器实例指针（用于信号处理）
 static std::atomic<bool> g_running{true};
 static std::unique_ptr<HttpJsonRpcServer> g_http_server{nullptr};
+
+// 独立 SSE 服务，用于承载长连接。
+static std::unique_ptr<HttpSseServer> g_sse_server{nullptr};
+
+namespace {
+
+std::string format_local_time(std::time_t time_value) {
+    std::tm local_time{};
+
+    // localtime_r 将结果写入调用方自己的对象，可安全并发调用。
+    if (localtime_r(&time_value, &local_time) == nullptr) {
+        return "unknown";
+    }
+
+    char buffer[100];
+    std::strftime(
+        buffer,
+        sizeof(buffer),
+        "%Y-%m-%d %H:%M:%S",
+        &local_time
+    );
+
+    return buffer;
+}
+
+constexpr std::size_t kFileWriteLockStripes = 64;
+std::array<std::mutex, kFileWriteLockStripes> g_file_write_locks;
+
+std::string normalize_file_path(const std::string& path) {
+    return std::filesystem::absolute(path)
+        .lexically_normal()
+        .string();
+}
+
+std::mutex& file_write_mutex(const std::string& normalized_path) {
+    // 同一路径总是映射到同一把锁。
+    const std::size_t index =
+        std::hash<std::string>{}(normalized_path) %
+        g_file_write_locks.size();
+
+    return g_file_write_locks[index];
+}
+
+bool current_request_should_stop() {
+    const JsonRpcRequestContext* context =
+        current_jsonrpc_request_context();
+    return context != nullptr && context->should_stop();
+}
+
+} // namespace
 
 // 信号处理函数
 void signal_handler(int signal) {
@@ -28,11 +93,16 @@ void signal_handler(int signal) {
     if (g_http_server) {
         g_http_server->stop();
     }
+
+    // 信号到来时，同时停止独立 SSE 监听器。
+    if (g_sse_server) {
+        g_sse_server->stop();
+    }
 }
 
 // 字符串转日志级别
 spdlog::level::level_enum StringToLogLevel(const std::string& level_str) {
-    if (level_str == "trace") {   
+    if (level_str == "trace") {
         return spdlog::level::trace;
     } else if (level_str == "debug") {
         return spdlog::level::debug;
@@ -60,6 +130,8 @@ void setup_mcp_server(McpServer& mcp) {
             {"message", {{"type", "string"}, {"description", "Message to echo"}}}
         };
         tool.input_schema.required = {"message"};
+        tool.execution_policy.idempotent = true;
+        tool.execution_policy.max_retries = 2;
 
         mcp.register_tool(tool, [](const json& args) -> ToolResult {
             ToolResult result;
@@ -82,6 +154,8 @@ void setup_mcp_server(McpServer& mcp) {
             {"b", {{"type", "number"}}}
         };
         tool.input_schema.required = {"operation", "a", "b"};
+        tool.execution_policy.idempotent = true;
+        tool.execution_policy.max_retries = 2;
 
         mcp.register_tool(tool, [](const json& args) -> ToolResult {
             std::string op = args.at("operation").get<std::string>();
@@ -120,16 +194,16 @@ void setup_mcp_server(McpServer& mcp) {
         tool.name = "get_time";
         tool.description = "Get current system time";
         tool.input_schema.properties = json::object();
+        tool.execution_policy.idempotent = true;
+        tool.execution_policy.max_retries = 2;
 
         mcp.register_tool(tool, [](const json& /*args*/) -> ToolResult {
-            std::time_t now = std::time(nullptr);
-            char buf[100];
-            std::strftime(buf, sizeof(buf), "%Y-%m-%d %H:%M:%S", std::localtime(&now));
 
             ToolResult result;
+
             result.content.push_back(ContentItem{
                 .type = "text",
-                .text = buf
+                .text = format_local_time(std::time(nullptr))
             });
             return result;
         });
@@ -144,30 +218,57 @@ void setup_mcp_server(McpServer& mcp) {
             {"city", {{"type", "string"}, {"description", "City name (e.g., Beijing, Shanghai)"}}}
         };
         tool.input_schema.required = {"city"};
+        // 查询没有副作用；临时网络故障可使用已有重试与熔断机制。
+        tool.execution_policy.idempotent = true;
+        tool.execution_policy.timeout_ms = 5000;
+        tool.execution_policy.max_retries = 2;
 
         mcp.register_tool(tool, [](const json& args) -> ToolResult {
             std::string city = args.at("city").get<std::string>();
-
-            // 模拟天气数据（实际应用中应该调用真实的天气 API）
-            std::time_t now = std::time(nullptr);
-            char time_buf[100];
-            std::strftime(time_buf, sizeof(time_buf), "%Y-%m-%d %H:%M:%S", std::localtime(&now));
-
-            std::ostringstream weather_info;
-            weather_info << "Weather Report for " << city << "\n";
-            weather_info << "========================\n";
-            weather_info << "Time: " << time_buf << "\n";
-            weather_info << "Temperature: 22°C\n";
-            weather_info << "Condition: Sunny\n";
-            weather_info << "Humidity: 45%\n";
-            weather_info << "Wind: 5 km/h NE\n";
-            weather_info << "\n(Note: This is simulated data. Integrate with real weather API for production)";
-
             ToolResult result;
-            result.content.push_back(ContentItem{
-                .type = "text",
-                .text = weather_info.str()
-            });
+
+            try {
+                WeatherClient weather_client(
+                    {},
+                    [] { return current_request_should_stop(); }
+                );
+                const WeatherReport weather =
+                    weather_client.get_current_weather(city);
+
+                std::ostringstream weather_info;
+                weather_info << "天气：" << weather.resolved_city;
+                if (!weather.country.empty()) {
+                    weather_info << "，" << weather.country;
+                }
+                weather_info << "\n观测时间：" << weather.observed_at
+                             << "\n天气状况：" << weather.condition
+                             << "\n温度：" << weather.temperature_c << " °C"
+                             << "\n体感温度："
+                             << weather.apparent_temperature_c << " °C"
+                             << "\n湿度：" << weather.humidity_percent << "%"
+                             << "\n风速：" << weather.wind_speed_kmh << " km/h";
+
+                result.content.push_back(ContentItem{
+                    .type = "text",
+                    .text = weather_info.str()
+                });
+            } catch (const WeatherRequestCancelled& e) {
+                result.is_error = true;
+                result.content.push_back(ContentItem{
+                    .type = "text",
+                    .text = e.what()
+                });
+            } catch (const RetryableToolError&) {
+                // 交给 McpServer::call_tool() 的重试与熔断逻辑处理。
+                throw;
+            } catch (const std::exception& e) {
+                result.is_error = true;
+                result.content.push_back(ContentItem{
+                    .type = "text",
+                    .text = std::string("Failed to get weather: ") + e.what()
+                });
+            }
+
             return result;
         });
     }
@@ -182,6 +283,9 @@ void setup_mcp_server(McpServer& mcp) {
             {"content", {{"type", "string"}, {"description", "Content to write to the file"}}}
         };
         tool.input_schema.required = {"path", "content"};
+        // 写文件会产生副作用，默认禁止自动重试。
+        tool.execution_policy.idempotent = false;
+        tool.execution_policy.max_retries = 0;
 
         mcp.register_tool(tool, [](const json& args) -> ToolResult {
             std::string path = args.at("path").get<std::string>();
@@ -189,8 +293,37 @@ void setup_mcp_server(McpServer& mcp) {
 
             ToolResult result;
 
-            try {
-                std::ofstream file(path);
+            const auto cancelled_result = [] {
+                ToolResult cancelled;
+                cancelled.is_error = true;
+                cancelled.content.push_back(ContentItem{
+                    .type = "text",
+                    .text = "Request cancelled before file write"
+                });
+                return cancelled;
+            };
+
+            // 文件写入有副作用，取消后不再开始新的写操作。
+            if (current_request_should_stop()) {
+                return cancelled_result();
+            }
+
+                try {
+                    // 同一路径的写操作串行化，不同路径通常可并发执行。
+                    const std::string normalized_path =
+                        normalize_file_path(path);
+
+                    std::lock_guard<std::mutex> lock(
+                        file_write_mutex(normalized_path)
+                    );
+
+                    // 等待路径锁期间可能收到取消，需要再次确认。
+                    if (current_request_should_stop()) {
+                        return cancelled_result();
+                    }
+
+                    std::ofstream file(path);
+
                 if (!file.is_open()) {
                     result.is_error = true;
                     result.content.push_back(ContentItem{
@@ -198,6 +331,11 @@ void setup_mcp_server(McpServer& mcp) {
                         .text = "Error: Failed to open file: " + path
                     });
                     return result;
+                    }
+
+                if (current_request_should_stop()) {
+                    file.close();
+                    return cancelled_result();
                 }
 
                 file << content;
@@ -237,10 +375,10 @@ void setup_mcp_server(McpServer& mcp) {
             std::ostringstream oss;
             oss << "MCP Server - System Info\n";
             oss << "========================\n";
-            std::time_t now = std::time(nullptr);
-            char buf[100];
-            std::strftime(buf, sizeof(buf), "%Y-%m-%d %H:%M:%S", std::localtime(&now));
-            oss << "Time: " << buf << "\n";
+
+            oss << "Time: "
+                << format_local_time(std::time(nullptr))
+                << "\n";
 
             content.text = oss.str();
             return content;
@@ -298,6 +436,11 @@ void setup_mcp_server(McpServer& mcp) {
 JsonRpcDispatcher create_dispatcher(McpServer& mcp_server) {
     JsonRpcDispatcher dispatcher;
 
+    auto tool_circuit_breaker = std::make_shared<ToolCircuitBreaker>(
+        MCP_CONFIG.GetToolCircuitFailureThreshold(),
+        std::chrono::milliseconds(MCP_CONFIG.GetToolCircuitOpenMs())
+    );
+
     // initialize
     dispatcher.registerHandler("initialize", [&mcp_server](const json& /*params*/) -> json {
         MCP_LOG_INFO("Client initialized");
@@ -314,13 +457,48 @@ JsonRpcDispatcher create_dispatcher(McpServer& mcp_server) {
     });
 
     // tools/call
-    dispatcher.registerHandler("tools/call", [&mcp_server](const json& params) -> json {
+    dispatcher.registerHandler(
+        "tools/call",
+        [&mcp_server, tool_circuit_breaker](const json& params) -> json {
         std::string name = params.at("name").get<std::string>();
         json arguments = params.value("arguments", json::object());
+
+        if (!tool_circuit_breaker->allow_call(name)) {
+            MCP_LOG_WARN("Tool circuit is open: {}", name);
+
+            ToolResult unavailable;
+            unavailable.is_error = true;
+            unavailable.content.push_back(ContentItem{
+                .type = "text",
+                .text = "Tool temporarily unavailable"
+            });
+            return unavailable.to_json();
+        }
+
         MCP_LOG_INFO("Calling tool: {}", name);
+        // call_tool() 已在内部完成全部重试；熔断器只记录这次逻辑调用的最终结果。
         auto result = mcp_server.call_tool(name, arguments);
+
+        const JsonRpcRequestContext* context =
+            current_jsonrpc_request_context();
+
+        // 客户端主动取消不表示工具依赖故障，不计入熔断。
+        if (context != nullptr && context->is_cancelled()) {
+            return result.to_json();
+        }
+
+        if (
+            result.is_error ||
+            (context != nullptr && context->deadline_exceeded())
+        ) {
+            tool_circuit_breaker->record_failure(name);
+        } else {
+            tool_circuit_breaker->record_success(name);
+        }
+
         return result.to_json();
-    });
+        }
+    );
 
     // resources/list
     dispatcher.registerHandler("resources/list", [&mcp_server](const json& /*params*/) -> json {
@@ -366,34 +544,107 @@ JsonRpcDispatcher create_dispatcher(McpServer& mcp_server) {
     return dispatcher;
 }
 
+std::shared_ptr<JsonRpcTaskRuntime> create_task_runtime(
+    McpServer& mcp_server
+) {
+    // HTTP 与 stdio 共用同一运行时；运行时再按任务 lane 路由到独立队列与 worker。
+    return std::make_shared<JsonRpcTaskRuntime>(
+        create_dispatcher(mcp_server),
+
+        // 默认请求执行池配置。
+        MCP_CONFIG.GetMaxPendingTasks(),
+        MCP_CONFIG.GetWorkerThreads(),
+
+        // tools/call 专用执行池配置。
+        MCP_CONFIG.GetToolMaxPendingTasks(),
+        MCP_CONFIG.GetToolWorkers(),
+
+        // resources/read 专用执行池配置。
+        MCP_CONFIG.GetResourceMaxPendingTasks(),
+        MCP_CONFIG.GetResourceWorkers(),
+
+        // prompts/get 专用执行池配置。
+        MCP_CONFIG.GetPromptMaxPendingTasks(),
+        MCP_CONFIG.GetPromptWorkers()
+    );
+}
+
+// 将运行时调度状态作为只读 MCP resource 暴露给客户端。
+void register_metrics_resource(
+    McpServer& mcp_server,
+    const std::shared_ptr<JsonRpcTaskRuntime>& runtime
+) {
+    Resource resource;
+    resource.uri = "mcp://server/metrics";
+    resource.name = "Server Metrics";
+    resource.description = "Current JSON-RPC scheduler metrics";
+    resource.mime_type = "application/json";
+
+    mcp_server.register_resource(
+        resource,
+        [runtime](const std::string& uri) -> ResourceContent {
+            ResourceContent content;
+            content.uri = uri;
+            content.mime_type = "application/json";
+            content.text = runtime->metrics_snapshot().to_json().dump(2);
+
+            MCP_LOG_DEBUG("Scheduler metrics resource read");
+            return content;
+        }
+    );
+}
+
 // HTTP 模式
-void run_http_mode(McpServer& mcp_server, const std::string& host, int port) {
+void run_http_mode(
+    McpServer& mcp_server,
+    const std::string& host,
+    int port,
+    const std::shared_ptr<JsonRpcTaskRuntime>& runtime
+) {
     MCP_LOG_INFO("Starting HTTP server on {}:{}", host, port);
 
-    auto dispatcher = create_dispatcher(mcp_server);
-    g_http_server = std::make_unique<HttpJsonRpcServer>(std::move(dispatcher), host, port);
+    g_http_server = std::make_unique<HttpJsonRpcServer>(
+        runtime,
+        host,
+        port
+    );
 
-    // SSE 事件队列
-    struct {
-        std::vector<json> events;
-        std::mutex mutex;
-        std::condition_variable cv;
-    } event_queue;
+    // SSE 使用独立端口和专用 HTTP worker。
+    g_sse_server = std::make_unique<HttpSseServer>(
+        host,
+        MCP_CONFIG.GetSsePort(),
+        MCP_CONFIG.GetSseWorkers()
+    );
 
-    // 设置 MCP 服务器的 SSE 回调
-    mcp_server.set_sse_callback([&event_queue](const json& event) {
-        std::lock_guard<std::mutex> lock(event_queue.mutex);
-        event_queue.events.push_back(event);
-        event_queue.cv.notify_all();
+    // HTTP 模式运行期间共享的 SSE 订阅中心。
+    auto sse_event_hub = std::make_shared<SseEventHub>(
+        MCP_CONFIG.GetSseMaxClients(),
+        MCP_CONFIG.GetSseMaxPendingEventsPerClient(),
+        MCP_CONFIG.GetSseReplayBufferEvents()
+    );
+
+    // 状态流与工具调用流使用不同 Hub，避免相互抢占连接名额。
+    auto status_sse_hub = std::make_shared<SseEventHub>(
+        MCP_CONFIG.GetSseMaxClients(),
+        MCP_CONFIG.GetSseMaxPendingEventsPerClient(),
+        MCP_CONFIG.GetSseReplayBufferEvents()
+    );
+
+    // 工具调用事件写入 SSE Hub，由 Hub 广播给各个独立客户端队列。
+    mcp_server.set_sse_callback([sse_event_hub](const json& event) {
+        sse_event_hub->publish(event.dump());
     });
 
-    // 注册 SSE 端点 - 服务器事件流
-    g_http_server->register_sse_endpoint("/sse/events", [&mcp_server](const auto& send) {
-        MCP_LOG_INFO("SSE events client connected");
-        send(json({{"type", "connected"}, {"message", "Server events stream"}}).dump());
-
+    // 状态事件由单一发布者产生，所有 SSE 客户端共享同一事件序列。
+    std::atomic_bool status_publisher_running{true};
+    std::thread status_publisher([
+        status_sse_hub,
+        &mcp_server,
+        &status_publisher_running
+    ] {
         int count = 0;
-        while (g_running.load()) {
+
+        while (status_publisher_running.load()) {
             json status = {
                 {"type", "server_status"},
                 {"timestamp", std::time(nullptr)},
@@ -402,68 +653,203 @@ void run_http_mode(McpServer& mcp_server, const std::string& host, int port) {
                 {"prompts_count", mcp_server.list_prompts().size()},
                 {"uptime_seconds", count++}
             };
-            send(status.dump());
-            std::this_thread::sleep_for(std::chrono::seconds(5));
-        }
+            status_sse_hub->publish(status.dump());
 
-        MCP_LOG_INFO("SSE events client disconnected");
-    });
-
-    // 注册 SSE 端点 - 工具调用实时流
-    g_http_server->register_sse_endpoint("/sse/tool_calls", [&event_queue](const auto& send) {
-        MCP_LOG_INFO("SSE tool_calls client connected");
-        send(json({{"type", "connected"}, {"message", "Tool calls monitoring"}}).dump());
-
-        while (g_running.load()) {
-            std::unique_lock<std::mutex> lock(event_queue.mutex);
-
-            // 等待事件或超时
-            event_queue.cv.wait_for(lock, std::chrono::seconds(1), [&event_queue] {
-                return !event_queue.events.empty();
-            });
-
-            // 发送所有待处理事件
-            for (const auto& event : event_queue.events) {
-                send(event.dump());
+            // 短间隔等待，停止服务时无需等待完整五秒周期。
+            for (
+                int interval = 0;
+                interval < 50 && status_publisher_running.load();
+                ++interval
+            ) {
+                std::this_thread::sleep_for(std::chrono::milliseconds(100));
             }
-            event_queue.events.clear();
         }
-
-        MCP_LOG_INFO("SSE tool_calls client disconnected");
     });
 
-    // 启动服务器（阻塞）
-    g_http_server->run();
+    // 注册 SSE 端点 - 服务器状态流。
+    g_sse_server->register_sse_endpoint(
+        "/sse/events",
+        [status_sse_hub](
+            std::optional<SseEvent::EventId> last_event_id,
+            const auto& send
+        ) {
+            // 状态流也必须先取得独立的 SSE 连接名额。
+            const auto subscription = status_sse_hub->subscribe(last_event_id);
+            if (!subscription.has_value()) {
+                MCP_LOG_WARN("SSE events client rejected: limit reached");
+                send(std::nullopt, json({
+                    {"type", "error"},
+                    {"message", "SSE client limit reached"}
+                }).dump());
+                return;
+            }
 
-    MCP_LOG_INFO("HTTP server stopped");
+            // 连接退出时自动释放状态流的订阅名额。
+            struct SubscriptionGuard {
+                std::shared_ptr<SseEventHub> hub;
+                SseEventHub::SubscriptionId subscription_id;
+
+                ~SubscriptionGuard() {
+                    hub->unsubscribe(subscription_id);
+                }
+            } guard{status_sse_hub, *subscription};
+
+            MCP_LOG_INFO(
+                "SSE events client connected: subscription_id={}",
+                *subscription
+            );
+
+            send(std::nullopt, json({
+                {"type", "connected"},
+                {"message", "Server events stream"}
+            }).dump());
+
+            while (g_running.load()) {
+                const auto event = status_sse_hub->wait_and_pop(
+                    *subscription,
+                    std::chrono::seconds(1)
+                );
+
+                if (event.has_value()) {
+                    send(event->id, event->payload);
+                }
+            }
+
+            MCP_LOG_INFO(
+                "SSE events client disconnected: subscription_id={}",
+                *subscription
+            );
+        }
+    );
+
+    // 注册 SSE 端点 - 工具调用实时流。
+    g_sse_server->register_sse_endpoint(
+        "/sse/tool_calls",
+        [sse_event_hub](
+            std::optional<SseEvent::EventId> last_event_id,
+            const auto& send
+        ) {
+            // 超过连接上限时，不再创建新的长期 SSE 订阅。
+            const auto subscription = sse_event_hub->subscribe(last_event_id);
+            if (!subscription.has_value()) {
+                MCP_LOG_WARN("SSE tool_calls client rejected: limit reached");
+                send(std::nullopt, json({
+                    {"type", "error"},
+                    {"message", "SSE client limit reached"}
+                }).dump());
+                return;
+            }
+
+            // 无论正常退出还是异常退出，都会取消订阅并释放客户端队列。
+            struct SubscriptionGuard {
+                std::shared_ptr<SseEventHub> hub;
+                SseEventHub::SubscriptionId subscription_id;
+
+                ~SubscriptionGuard() {
+                    hub->unsubscribe(subscription_id);
+                }
+            } guard{sse_event_hub, *subscription};
+
+            MCP_LOG_INFO(
+                "SSE tool_calls client connected: subscription_id={}",
+                *subscription
+            );
+
+            send(std::nullopt, json({
+                {"type", "connected"},
+                {"message", "Tool calls monitoring"}
+            }).dump());
+
+            while (g_running.load()) {
+                // 每次只消费当前客户端自己的一条事件。
+                const auto event = sse_event_hub->wait_and_pop(
+                    *subscription,
+                    std::chrono::seconds(1)
+                );
+
+                // 超时期间继续检查服务是否正在关闭。
+                if (!event.has_value()) {
+                    continue;
+                }
+
+                send(event->id, event->payload);
+            }
+
+            MCP_LOG_INFO(
+                "SSE tool_calls client disconnected: subscription_id={}",
+                *subscription
+            );
+        }
+    );
+    // SSE 服务在独立线程中监听 sse_port，并使用自己的 HTTP worker pool。
+    std::thread sse_thread([] {
+        g_sse_server->run();
+    });
+
+    // 无论主 HTTP 服务正常退出还是抛异常，都要停止并回收 SSE 线程。
+    const auto stop_and_join_sse = [
+        &sse_thread,
+        &status_publisher,
+        &status_publisher_running
+    ] {
+        status_publisher_running.store(false);
+        if (status_publisher.joinable()) {
+            status_publisher.join();
+        }
+
+        if (g_sse_server) {
+            g_sse_server->stop();
+        }
+
+        if (sse_thread.joinable()) {
+            sse_thread.join();
+        }
+    };
+
+    try {
+        // 当前线程继续运行 JSON-RPC HTTP 服务。
+        g_http_server->run();
+    } catch (...) {
+        // 监听端口失败等异常不能遗留 joinable SSE 线程。
+        stop_and_join_sse();
+        throw;
+    }
+
+    // JSON-RPC 服务正常停止时，也执行同一套收尾逻辑。
+    stop_and_join_sse();
+
+    MCP_LOG_INFO("HTTP and SSE servers stopped");
 }
 
 // stdio 模式
-void run_stdio_mode(McpServer& mcp_server) {
+void run_stdio_mode(
+    McpServer& mcp_server,
+    const std::shared_ptr<JsonRpcTaskRuntime>& runtime
+) {
     MCP_LOG_INFO("Starting stdio server");
 
-    auto dispatcher = create_dispatcher(mcp_server);
-    StdioJsonRpcServer stdio_server(std::move(dispatcher));
+    StdioJsonRpcServer stdio_server(runtime);
 
-    // 启动服务器（阻塞）
     stdio_server.run();
 
     MCP_LOG_INFO("stdio server stopped");
 }
 
 // 同时运行两种模式
-void run_both_modes(McpServer& mcp_server, const std::string& host, int port) {
+void run_both_modes(
+    McpServer& mcp_server,
+    const std::string& host,
+    int port,
+    const std::shared_ptr<JsonRpcTaskRuntime>& runtime
+) {
     MCP_LOG_INFO("Starting both HTTP and stdio servers");
 
-    // 在独立线程中运行 HTTP 服务器
-    std::thread http_thread([&mcp_server, &host, port]() {
-        run_http_mode(mcp_server, host, port);
+    std::thread http_thread([&mcp_server, &host, port, runtime]() {
+        run_http_mode(mcp_server, host, port, runtime);
     });
 
-    // 在主线程运行 stdio 服务器
-    run_stdio_mode(mcp_server);
+    run_stdio_mode(mcp_server, runtime);
 
-    // 等待 HTTP 线程结束
     if (http_thread.joinable()) {
         http_thread.join();
     }
@@ -526,7 +912,7 @@ int main(int argc, char* argv[]) {
                  MCP_CONFIG.GetLogConsoleOutput());
     MCP_LOG_SET_LEVEL(StringToLogLevel(MCP_CONFIG.GetLogLevel()));
 
-   
+
     if (mode == "http" || mode == "both") {
         MCP_LOG_INFO("HTTP: {}:{}", host, port);
     }
@@ -545,18 +931,23 @@ int main(int argc, char* argv[]) {
         // 注册 Tools, Resources, Prompts
         setup_mcp_server(mcp_server);
 
+        auto runtime = create_task_runtime(mcp_server);
+        register_metrics_resource(mcp_server, runtime);
+
         // 设置信号处理
         std::signal(SIGINT, signal_handler);
         std::signal(SIGTERM, signal_handler);
 
         // 根据模式启动服务器
         if (mode == "http") {
-            run_http_mode(mcp_server, host, port);
+            run_http_mode(mcp_server, host, port, runtime);
         } else if (mode == "stdio") {
-            run_stdio_mode(mcp_server);
-        } else if (mode == "both") {
-            run_both_modes(mcp_server, host, port);
+            run_stdio_mode(mcp_server, runtime);
+        } else {
+            run_both_modes(mcp_server, host, port, runtime);
         }
+
+        runtime->shutdown();
 
         MCP_LOG_INFO("Server shutdown complete");
 

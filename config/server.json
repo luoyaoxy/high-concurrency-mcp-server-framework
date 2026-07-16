@@ -1,6 +1,26 @@
 {
   "server": {
-    "port": 8089
+    "port": 8089,
+
+    "sse_port": 8090,
+    "sse_workers": 2,
+
+    "worker_threads": 4,
+    "max_pending_tasks": 128,
+    "request_timeout_ms": 30000,
+    "tool_workers": 2,
+    "tool_max_pending_tasks": 32,
+    "tool_circuit_failure_threshold": 5,
+    "tool_circuit_open_ms": 30000,
+    "resource_workers": 2,
+    "resource_max_pending_tasks": 32,
+    "prompt_workers": 2,
+    "prompt_max_pending_tasks": 32,
+
+    "sse_max_clients": 16,
+    "sse_max_pending_events_per_client": 128,
+    "sse_replay_buffer_events": 256
+
   },
   "logging": {
     "log_file_path": "../../logs/server.log",

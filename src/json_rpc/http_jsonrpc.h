@@ -1,9 +1,8 @@
 
 #pragma once
 
-#include "jsonrpc.h"
+#include "jsonrpc_task_runtime.h"
 #include <string>
-#include <functional>
 #include <memory>
 #include <atomic>
 
@@ -12,10 +11,12 @@ namespace mcp {
 class HttpJsonRpcServer {
 public:
  
-    explicit HttpJsonRpcServer(JsonRpcDispatcher dispatcher);
+    explicit HttpJsonRpcServer(
+        std::shared_ptr<JsonRpcTaskRuntime> runtime
+    );
 
     HttpJsonRpcServer(
-        JsonRpcDispatcher dispatcher,
+        std::shared_ptr<JsonRpcTaskRuntime> runtime,
         const std::string& host,
         int port
     );
@@ -36,12 +37,8 @@ public:
 
     int get_port() const { return port_; }
 
-    using SseCallback = std::function<void(const std::function<void(const std::string&)>&)>;
-
-    void register_sse_endpoint(const std::string& path, SseCallback callback);
-
 private:
-    JsonRpcDispatcher dispatcher_;
+    std::shared_ptr<JsonRpcTaskRuntime> runtime_;
     std::string host_;
     int port_;
     std::atomic<bool> running_{false};

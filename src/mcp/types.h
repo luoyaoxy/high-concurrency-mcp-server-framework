@@ -43,11 +43,22 @@ struct ToolInputSchema {
     static ToolInputSchema from_json(const json& j);
 };
 
+// 工具的内部执行策略，不暴露为 MCP tools/list 协议字段。
+struct ToolExecutionPolicy {
+    // 默认禁止自动重试，避免对有副作用的工具重复执行。
+    bool idempotent = false;
+    // 0 表示沿用 JSON-RPC 请求的总 deadline。
+    int timeout_ms = 0;
+    // 自动重试的额外次数；0 表示只执行一次。
+    int max_retries = 0;
+};
+
 // 工具定义
 struct Tool {
     std::string name;                      // 工具名称
     std::string description;               // 工具描述
     ToolInputSchema input_schema;          // 输入 Schema
+    ToolExecutionPolicy execution_policy;  // 内部执行与重试策略
 
     json to_json() const;
     static Tool from_json(const json& j);

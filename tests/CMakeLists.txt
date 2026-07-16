@@ -63,4 +63,102 @@ target_link_libraries(test_mcp_server
 )
 add_test(NAME McpServerTest COMMAND test_mcp_server)
 gtest_discover_tests(test_mcp_server)
+
+add_executable(test_jsonrpc_task_queue
+    jsonrpc_task_queue_test.cpp
+)
+
+target_link_libraries(test_jsonrpc_task_queue
+    mcp_lib
+    GTest::gtest_main
+)
+
+add_test(NAME JsonRpcTaskQueueTest COMMAND test_jsonrpc_task_queue)
+gtest_discover_tests(test_jsonrpc_task_queue)
+
+add_executable(test_jsonrpc_task_runtime
+    jsonrpc_task_runtime_test.cpp
+)
+
+target_link_libraries(test_jsonrpc_task_runtime
+    mcp_lib
+    GTest::gtest_main
+)
+
+
+gtest_discover_tests(test_jsonrpc_task_runtime)
 # ===================================================================
+
+# JSON-RPC 调度指标快照与并发采集测试。
+add_executable(test_jsonrpc_metrics
+    jsonrpc_metrics_test.cpp
+)
+
+target_link_libraries(test_jsonrpc_metrics
+    mcp_lib
+    GTest::gtest_main
+)
+
+gtest_discover_tests(test_jsonrpc_metrics)
+
+
+# SSE 客户端隔离与背压测试。
+add_executable(test_sse_event_hub
+    sse_event_hub_test.cpp
+)
+
+target_link_libraries(test_sse_event_hub
+    mcp_lib
+    GTest::gtest_main
+)
+
+# 将 TEST(...) 自动注册为独立 CTest 项。
+gtest_discover_tests(test_sse_event_hub)
+
+# 按工具隔离故障的熔断器测试。
+add_executable(test_tool_circuit_breaker
+    tool_circuit_breaker_test.cpp
+)
+
+target_link_libraries(test_tool_circuit_breaker
+    mcp_lib
+    GTest::gtest_main
+)
+
+gtest_discover_tests(test_tool_circuit_breaker)
+
+# HTTP batch 的并发 Map/Gather 行为测试。
+add_executable(test_http_jsonrpc
+    http_jsonrpc_test.cpp
+)
+
+target_link_libraries(test_http_jsonrpc
+    mcp_lib
+    GTest::gtest_main
+)
+
+gtest_discover_tests(test_http_jsonrpc)
+
+# 幂等工具的自动重试、取消与 deadline 测试。
+add_executable(test_tool_retry
+    tool_retry_test.cpp
+)
+
+target_link_libraries(test_tool_retry
+    mcp_lib
+    GTest::gtest_main
+)
+
+gtest_discover_tests(test_tool_retry)
+
+# 真实天气客户端使用 mock HTTP 响应，不依赖外部天气服务。
+add_executable(test_weather_client
+    weather_client_test.cpp
+)
+
+target_link_libraries(test_weather_client
+    mcp_lib
+    GTest::gtest_main
+)
+
+gtest_discover_tests(test_weather_client)

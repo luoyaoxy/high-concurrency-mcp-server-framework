@@ -1,13 +1,20 @@
 #pragma once
 
 #include <nlohmann/json.hpp>
+#include <condition_variable>
+#include <cstddef>
 #include <functional>
 #include <optional>
 #include <string>
 #include <unordered_map>
 #include <iostream>
+#include <mutex>
+
+#include <memory>
 
 namespace mcp {
+
+class JsonRpcTaskRuntime;
 
 using json = nlohmann::json;
 
@@ -57,25 +64,44 @@ private:
 // stdio + Content-Length 封包的 JSON-RPC 服务器
 class StdioJsonRpcServer {
 public:
-    explicit StdioJsonRpcServer(JsonRpcDispatcher dispatcher);
-    StdioJsonRpcServer(JsonRpcDispatcher dispatcher, std::istream& in, std::ostream& out);
+    explicit StdioJsonRpcServer(
+        std::shared_ptr<JsonRpcTaskRuntime> runtime
+    );
+
+    StdioJsonRpcServer(
+        std::shared_ptr<JsonRpcTaskRuntime> runtime,
+        std::istream& in,
+        std::ostream& out
+    );
+
     // 阻塞运行：循环读取请求并输出响应
     void run();
 
 private:
-    // 方法路由与调用分发器（保存 method -> handler 的映射）
-    JsonRpcDispatcher dispatcher_;
+
+    std::shared_ptr<JsonRpcTaskRuntime> runtime_;
     // 输入流，默认绑定到标准输入
     std::istream& in_ = std::cin;
     // 输出流，默认绑定到标准输出
     std::ostream& out_ = std::cout;
+    // 串行化 stdio 输出，保证每个响应帧完整写出。
+    std::mutex output_mutex_;
+    // 跟踪已提交、尚未写完响应的普通请求。
+    std::mutex pending_response_mutex_;
+    std::condition_variable pending_response_cv_;
+    std::size_t pending_response_count_ = 0;
+
+    void begin_pending_response();
+    void finish_pending_response();
+    void wait_for_pending_responses();
+
     // 从输入流读取一条完整的 JSON-RPC 消息体（依据 Content-Length）
     bool readMessage(std::string& out_body); // 从 stdin 读取一条完整 JSON 文本
     // 将 JSON 消息写到输出流，并附带 Content-Length 头
     void writeMessage(const json& msg);
 
     // 处理单个请求
-    JsonRpcResponse handleRequest(const JsonRpcRequest& req);
+    std::optional<JsonRpcResponse> handleRequest(const JsonRpcRequest& req);
 };
 
 // 常用错误码
@@ -89,4 +115,3 @@ namespace jsonrpc_errc {
 }
 
 } // namespace mcp
-

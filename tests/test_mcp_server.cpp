@@ -7,10 +7,25 @@
 #include "mcp_server.h"
 #include "types.h"
 
+#include "logger.h"
+
+#include <atomic>
+#include <chrono>
+#include <future>
+
 using namespace mcp;
 
 class McpServerTest : public ::testing::Test {
 protected:
+
+    static void SetUpTestSuite() {
+        MCP_LOG_INIT("mcp_server_test", "", 0, 0, false);
+    }
+
+    static void TearDownTestSuite() {
+        MCP_LOG_SHUTDOWN();
+    }
+
     void SetUp() override {
         server = std::make_unique<McpServer>("test-server", "1.0.0");
     }
@@ -287,6 +302,249 @@ TEST_F(McpServerTest, InitializeResultSerialization) {
     InitializeResult result2 = InitializeResult::from_json(j);
     EXPECT_EQ(result2.protocol_version, result.protocol_version);
     EXPECT_EQ(result2.server_info.name, result.server_info.name);
+}
+
+TEST_F(McpServerTest, ToolHandlersCanRunConcurrently) {
+    std::atomic<int> active_count{0};
+    std::atomic<int> max_active_count{0};
+
+    std::promise<void> both_started;
+    std::future<void> both_started_result =
+        both_started.get_future();
+
+    std::promise<void> release;
+    std::shared_future<void> release_signal =
+        release.get_future().share();
+
+    Tool tool;
+    tool.name = "parallel";
+    tool.description = "Parallel test tool";
+
+    server->register_tool(
+        tool,
+        [
+            &active_count,
+            &max_active_count,
+            &both_started,
+            release_signal
+        ](const json&) -> ToolResult {
+            const int current =
+                active_count.fetch_add(1) + 1;
+
+            int previous = max_active_count.load();
+            while (
+                previous < current &&
+                !max_active_count.compare_exchange_weak(
+                    previous,
+                    current
+                )
+            ) {}
+
+            // 两个 handler 同时进入时，通知测试线程。
+            if (current == 2) {
+                both_started.set_value();
+            }
+
+            release_signal.wait();
+            active_count.fetch_sub(1);
+
+            return ToolResult{};
+        }
+    );
+
+    auto first = std::async(std::launch::async, [this] {
+        return server->call_tool("parallel", json::object());
+    });
+
+    auto second = std::async(std::launch::async, [this] {
+        return server->call_tool("parallel", json::object());
+    });
+
+    const bool ran_concurrently =
+        both_started_result.wait_for(std::chrono::seconds(1)) ==
+        std::future_status::ready;
+
+    // 无论断言结果如何，都要解除 handler 阻塞。
+    release.set_value();
+
+    first.get();
+    second.get();
+
+    EXPECT_TRUE(ran_concurrently);
+    EXPECT_EQ(max_active_count.load(), 2);
+}
+
+TEST_F(McpServerTest, RegisterToolDoesNotWaitForRunningHandler) {
+    std::promise<void> handler_started;
+    std::future<void> handler_started_result =
+        handler_started.get_future();
+
+    std::promise<void> release_handler;
+    std::shared_future<void> release_signal =
+        release_handler.get_future().share();
+
+    Tool slow_tool;
+    slow_tool.name = "slow_tool";
+
+    server->register_tool(
+        slow_tool,
+        [&handler_started, release_signal](const json&) -> ToolResult {
+            handler_started.set_value();
+            release_signal.wait();
+            return ToolResult{};
+        }
+    );
+
+    auto slow_call = std::async(std::launch::async, [this] {
+        return server->call_tool("slow_tool", json::object());
+    });
+
+    const bool handler_is_running =
+        handler_started_result.wait_for(std::chrono::seconds(1)) ==
+        std::future_status::ready;
+
+    Tool new_tool;
+    new_tool.name = "registered_while_slow";
+
+    // 注册需要独占锁；若 handler 持锁，这里会被慢调用阻塞。
+    auto registration = std::async(std::launch::async, [this, new_tool] {
+        server->register_tool(new_tool, [](const json&) -> ToolResult {
+            return ToolResult{};
+        });
+    });
+
+    const bool registration_finished =
+        registration.wait_for(std::chrono::milliseconds(200)) ==
+        std::future_status::ready;
+
+    // 断言前先解除阻塞，避免测试失败时遗留工作线程。
+    release_handler.set_value();
+    slow_call.get();
+    registration.get();
+
+    EXPECT_TRUE(handler_is_running);
+    EXPECT_TRUE(registration_finished);
+    EXPECT_TRUE(server->has_tool("registered_while_slow"));
+}
+
+TEST_F(McpServerTest, ReadOtherResourceDoesNotWaitForRunningProvider) {
+    std::promise<void> provider_started;
+    std::future<void> provider_started_result =
+        provider_started.get_future();
+
+    std::promise<void> release_provider;
+    std::shared_future<void> release_signal =
+        release_provider.get_future().share();
+
+    Resource slow_resource;
+    slow_resource.uri = "test://slow-resource";
+    server->register_resource(
+        slow_resource,
+        [&provider_started, release_signal](const std::string& uri) {
+            provider_started.set_value();
+            release_signal.wait();
+            ResourceContent content;
+            content.uri = uri;
+            content.text = "slow";
+            return content;
+        }
+    );
+
+    Resource fast_resource;
+    fast_resource.uri = "test://fast-resource";
+    server->register_resource(
+        fast_resource,
+        [](const std::string& uri) {
+            ResourceContent content;
+            content.uri = uri;
+            content.text = "fast";
+            return content;
+        }
+    );
+
+    auto slow_read = std::async(std::launch::async, [this] {
+        return server->read_resource("test://slow-resource");
+    });
+
+    const bool provider_is_running =
+        provider_started_result.wait_for(std::chrono::seconds(1)) ==
+        std::future_status::ready;
+
+    // 两次读只应短暂共享 registry 锁，不应相互等待 provider 执行。
+    auto fast_read = std::async(std::launch::async, [this] {
+        return server->read_resource("test://fast-resource");
+    });
+
+    const bool fast_read_finished =
+        fast_read.wait_for(std::chrono::milliseconds(200)) ==
+        std::future_status::ready;
+
+    release_provider.set_value();
+    slow_read.get();
+    ResourceContent fast_content = fast_read.get();
+
+    EXPECT_TRUE(provider_is_running);
+    EXPECT_TRUE(fast_read_finished);
+    EXPECT_EQ(fast_content.text, "fast");
+}
+
+TEST_F(McpServerTest, GetOtherPromptDoesNotWaitForRunningGenerator) {
+    std::promise<void> generator_started;
+    std::future<void> generator_started_result =
+        generator_started.get_future();
+
+    std::promise<void> release_generator;
+    std::shared_future<void> release_signal =
+        release_generator.get_future().share();
+
+    Prompt slow_prompt;
+    slow_prompt.name = "slow_prompt";
+    server->register_prompt(
+        slow_prompt,
+        [&generator_started, release_signal](const json&) {
+            generator_started.set_value();
+            release_signal.wait();
+            return std::vector<PromptMessage>{};
+        }
+    );
+
+    Prompt fast_prompt;
+    fast_prompt.name = "fast_prompt";
+    server->register_prompt(
+        fast_prompt,
+        [](const json&) {
+            PromptMessage message;
+            message.role = Role::Assistant;
+            message.content = {{"type", "text"}, {"text", "fast"}};
+            return std::vector<PromptMessage>{message};
+        }
+    );
+
+    auto slow_get = std::async(std::launch::async, [this] {
+        return server->get_prompt("slow_prompt", json::object());
+    });
+
+    const bool generator_is_running =
+        generator_started_result.wait_for(std::chrono::seconds(1)) ==
+        std::future_status::ready;
+
+    // generator 在锁外运行时，其他 prompt 仍可立即查询并生成。
+    auto fast_get = std::async(std::launch::async, [this] {
+        return server->get_prompt("fast_prompt", json::object());
+    });
+
+    const bool fast_get_finished =
+        fast_get.wait_for(std::chrono::milliseconds(200)) ==
+        std::future_status::ready;
+
+    release_generator.set_value();
+    slow_get.get();
+    std::vector<PromptMessage> fast_messages = fast_get.get();
+
+    EXPECT_TRUE(generator_is_running);
+    EXPECT_TRUE(fast_get_finished);
+    ASSERT_EQ(fast_messages.size(), 1);
+    EXPECT_EQ(fast_messages.front().content["text"], "fast");
 }
 
 // Main function

@@ -12,6 +12,7 @@
 #include <unordered_map>
 #include <memory>
 #include <mutex>
+#include <shared_mutex>
 
 namespace mcp {
 
@@ -90,17 +91,17 @@ private:
     // Tools 存储，用来存储各种工具
     std::unordered_map<std::string, Tool> tools_;
     std::unordered_map<std::string, ToolHandler> tool_handlers_;
-    mutable std::mutex tools_mutex_;
+    mutable std::shared_mutex tools_mutex_;
 
     // Resources 存储
     std::unordered_map<std::string, Resource> resources_;
     std::unordered_map<std::string, ResourceProvider> resource_providers_;
-    mutable std::mutex resources_mutex_;
+    mutable std::shared_mutex resources_mutex_;
 
     // Prompts 存储
     std::unordered_map<std::string, Prompt> prompts_;
     std::unordered_map<std::string, PromptGenerator> prompt_generators_;
-    mutable std::mutex prompts_mutex_;
+    mutable std::shared_mutex prompts_mutex_;
 
     // SSE 事件回调
     SseEventCallback sse_callback_;

@@ -6,6 +6,9 @@
 
 #include "jsonrpc.h"
 #include "jsonrpc_serialization.h"
+
+#include "config.h"
+
 #include "logger.h"
 
 #include <iostream>
@@ -14,6 +17,15 @@
 #include <algorithm>
 #include <cctype>
 #include <stdexcept>
+
+#include <chrono>
+
+
+#include "jsonrpc_task.h"
+
+#include "jsonrpc_task_runtime.h"
+
+
 
 namespace mcp {
 
@@ -44,11 +56,27 @@ json JsonRpcDispatcher::call(const std::string& method, const json& params) cons
 // StdioJsonRpcServer
 // ============================================================================
 
-StdioJsonRpcServer::StdioJsonRpcServer(JsonRpcDispatcher dispatcher)
-    : dispatcher_(std::move(dispatcher)) {}
+StdioJsonRpcServer::StdioJsonRpcServer(
+    std::shared_ptr<JsonRpcTaskRuntime> runtime
+)
+    : StdioJsonRpcServer(
+        std::move(runtime),
+        std::cin,
+        std::cout
+    ) {}
 
-StdioJsonRpcServer::StdioJsonRpcServer(JsonRpcDispatcher dispatcher, std::istream& in, std::ostream& out)
-    : dispatcher_(std::move(dispatcher)), in_(in), out_(out) {}
+StdioJsonRpcServer::StdioJsonRpcServer(
+    std::shared_ptr<JsonRpcTaskRuntime> runtime,
+    std::istream& in,
+    std::ostream& out
+)
+    : runtime_(std::move(runtime))
+    , in_(in)
+    , out_(out) {
+    if (!runtime_) {
+        throw std::invalid_argument("JSON-RPC task runtime is required");
+    }
+}
 
 
  // 读取一条完整的 JSON-RPC 消息
@@ -151,70 +179,88 @@ bool StdioJsonRpcServer::readMessage(std::string& out_body) {
 
 /// 写入消息（添加 Content-Length 头）
 void StdioJsonRpcServer::writeMessage(const json& msg) {
+    std::lock_guard<std::mutex> lock(output_mutex_);
+
     std::string payload = msg.dump();
     out_ << "Content-Length: " << payload.size() << "\r\n\r\n";
     out_ << payload;
     out_.flush();
 }
 
-/**
- * 处理单个 JSON-RPC 请求
- * 错误码: -32700(Parse), -32600(Invalid), -32601(NotFound), -32602(Params), -32603(Internal)
- */
-JsonRpcResponse StdioJsonRpcServer::handleRequest(const JsonRpcRequest& req) {
-    JsonRpcResponse resp;
-    resp.jsonrpc = "2.0";
-    if (req.id.has_value()) {
-        resp.id = *req.id;
-    } else {
-        resp.id = nullptr;
+void StdioJsonRpcServer::begin_pending_response() {
+    std::lock_guard<std::mutex> lock(pending_response_mutex_);
+    ++pending_response_count_;
+}
+
+void StdioJsonRpcServer::finish_pending_response() {
+    std::lock_guard<std::mutex> lock(pending_response_mutex_);
+
+    if (pending_response_count_ == 0) {
+        MCP_LOG_ERROR("stdio pending response count underflow");
+        return;
     }
 
-    try {
-        // 验证请求格式
-        if (req.jsonrpc != "2.0") {
-            throw std::invalid_argument("Invalid Request: jsonrpc must be 2.0");
-        }
-        if (req.method.empty()) {
-            throw std::invalid_argument("Invalid Request: method missing");
+    --pending_response_count_;
+    pending_response_cv_.notify_all();
+}
+
+void StdioJsonRpcServer::wait_for_pending_responses() {
+    std::unique_lock<std::mutex> lock(pending_response_mutex_);
+    pending_response_cv_.wait(lock, [this] {
+        return pending_response_count_ == 0;
+    });
+}
+
+std::optional<JsonRpcResponse> StdioJsonRpcServer::handleRequest(
+    const JsonRpcRequest& req
+) {
+    // $/cancelRequest 是控制 notification，不进入业务任务队列。
+    if (req.method == "$/cancelRequest") {
+        if (
+            !req.params.has_value() ||
+            !req.params->is_object() ||
+            !req.params->contains("id")
+        ) {
+            MCP_LOG_WARN(
+                "Ignoring invalid stdio $/cancelRequest: missing params.id"
+            );
+            return std::nullopt;
         }
 
-        const std::string method = req.method;
-        json params = req.params.has_value() ? *req.params : json::object();
+        runtime_->cancel_request((*req.params)["id"]);
 
-        MCP_LOG_DEBUG("Handling method: {}", method);
-
-        // 检查方法是否存在
-        if (!dispatcher_.hasHandler(method)) {
-            resp.error = JsonRpcError{jsonrpc_errc::MethodNotFound, "Method not found", std::nullopt};
-            return resp;
-        }
-
-        // 调用方法处理器
-        try {
-            json result = dispatcher_.call(method, params);
-            resp.result = std::move(result);
-            resp.error.reset();
-        } catch (const std::invalid_argument& ex) {
-            resp.result.reset();
-            resp.error = JsonRpcError{jsonrpc_errc::InvalidParams, ex.what(), std::nullopt};
-        } catch (const std::exception& ex) {
-            resp.result.reset();
-            resp.error = JsonRpcError{jsonrpc_errc::InternalError, ex.what(), std::nullopt};
-        }
-    } catch (const std::invalid_argument& ex) {
-        resp.result.reset();
-        resp.error = JsonRpcError{jsonrpc_errc::InvalidRequest, ex.what(), std::nullopt};
-    } catch (const json::parse_error& ex) {
-        // 区分 JSON 解析错误
-        resp.result.reset();
-        resp.error = JsonRpcError{jsonrpc_errc::ParseError, ex.what(), std::nullopt};
-    } catch (const std::exception& ex) {
-        resp.result.reset();
-        resp.error = JsonRpcError{jsonrpc_errc::InternalError, ex.what(), std::nullopt};
+        // 取消命令本身没有 JSON-RPC 响应。
+        return std::nullopt;
     }
 
-    return resp;
+    JsonRpcTask task = make_jsonrpc_task(
+        req,
+        "stdio",
+        std::chrono::milliseconds(MCP_CONFIG.GetRequestTimeoutMs())
+    );
+
+    // 任务完成后由 worker 写回响应，读取线程无需等待执行结果。
+    begin_pending_response();
+
+    runtime_->submit(
+        std::move(task),
+        [this](JsonRpcTaskResult result) {
+            try {
+                if (result.has_value()) {
+                    writeMessage(json(*result));
+                }
+            } catch (const std::exception& e) {
+                MCP_LOG_ERROR("Failed to write stdio JSON-RPC response: {}", e.what());
+            } catch (...) {
+                MCP_LOG_ERROR("Failed to write stdio JSON-RPC response");
+            }
+
+            finish_pending_response();
+        }
+    );
+
+    // 响应由完成回调异步写出。
+    return std::nullopt;
 }
 
 /// 运行服务器主循环（阻塞），从 stdin 读取请求并输出到 stdout
@@ -249,12 +295,12 @@ void StdioJsonRpcServer::run() {
                 continue;
             }
 
-            const bool is_notification = !req.id.has_value();  // 通知无需响应
-            auto resp = handleRequest(req);
+            std::optional<JsonRpcResponse> response = handleRequest(req);
 
-            if (!is_notification) {
-                writeMessage(json(resp));
+            if (response.has_value()) {
+                writeMessage(json(*response));
             }
+
         } catch (const json::parse_error& ex) {
             // 单独捕获 JSON 解析错误
             MCP_LOG_ERROR("JSON parse error: {}", ex.what());
@@ -264,6 +310,9 @@ void StdioJsonRpcServer::run() {
             writeMessage(json(resp));
         }
     }
+
+    // EOF 后等待已提交请求完成，避免回调访问已销毁的 server。
+    wait_for_pending_responses();
 }
 
 } // namespace mcp
