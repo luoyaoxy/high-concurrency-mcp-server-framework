@@ -8,7 +8,7 @@ namespace mcp {
 // JsonRpcRequest
 // =========================
 void to_json(json& j, const JsonRpcRequest& r) {
-    j = json{{"jsonrpc", "2.0"}, {"method", r.method}};
+    j = json{{"jsonrpc", kJsonRpcVersion}, {"method", r.method}};
     if (r.id.has_value()) {
         j["id"] = *r.id;
     }
@@ -52,7 +52,7 @@ void from_json(const json& j, JsonRpcError& e) {
 
 
 void to_json(json& j, const JsonRpcResponse& r) {
-    j = json{{"jsonrpc", "2.0"}, {"id", r.id}};
+    j = json{{"jsonrpc", kJsonRpcVersion}, {"id", r.id}};
 
     // Enforce mutual exclusivity per JSON-RPC 2.0
     if (r.error.has_value()) {

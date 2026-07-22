@@ -221,7 +221,7 @@ void JsonRpcWorkerPool::worker_loop(std::size_t worker_index) {
             JsonRpcTaskResult failed_result;
             if (!envelope->task.is_notification()) {
                 JsonRpcResponse response;
-                response.jsonrpc = "2.0";
+                response.jsonrpc = kJsonRpcVersion;
                 response.id = envelope->task.request_id.value_or(nullptr);
                 response.error = JsonRpcError{
                     jsonrpc_errc::InternalError,

@@ -18,6 +18,9 @@ class JsonRpcTaskRuntime;
 
 using json = nlohmann::json;
 
+// JSON-RPC 协议版本，作为全项目统一的协议常量。
+inline constexpr char kJsonRpcVersion[] = "2.0";
+
 // ==============================
 // JSON-RPC 2.0 基础类型
 // ==============================
@@ -30,14 +33,14 @@ struct JsonRpcError {
 
 // JSON-RPC 2.0 请求类型
 struct JsonRpcRequest {
-    std::string jsonrpc = "2.0";
+    std::string jsonrpc = kJsonRpcVersion;
     std::optional<json> id;        // 缺省表示 Notification（无响应）
     std::string method;
     std::optional<json> params;    // 对象或数组，缺省表示无参数
 };
 
 struct JsonRpcResponse {
-    std::string jsonrpc = "2.0";
+    std::string jsonrpc = kJsonRpcVersion;
     json id; // 允许字符串/数字/null
     std::optional<json> result;
     std::optional<JsonRpcError> error;

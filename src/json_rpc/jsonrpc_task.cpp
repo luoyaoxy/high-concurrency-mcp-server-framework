@@ -57,7 +57,7 @@ JsonRpcResponse make_response(
     std::optional<JsonRpcError> error
 ) {
     JsonRpcResponse response;
-    response.jsonrpc = "2.0";
+    response.jsonrpc = kJsonRpcVersion;
 
     // 普通请求一定有 request_id。
     // notification 没有 request_id，并且正常情况下不会调用到这里返回响应。
@@ -171,7 +171,7 @@ std::optional<JsonRpcResponse> execute_jsonrpc_task(
 
     try {
         // 第一步：验证 JSON-RPC 协议版本。
-        if (task.jsonrpc != "2.0") {
+        if (task.jsonrpc != kJsonRpcVersion) {
             // notification 不需要向客户端返回任何响应。
             if (task.is_notification()) {
                 return std::nullopt;

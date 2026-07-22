@@ -4,6 +4,9 @@
  */
 
 #include "mcp_client.h"
+
+#include "../json_rpc/jsonrpc.h"
+
 #include <httplib.h>
 #include <stdexcept>
 
@@ -63,7 +66,7 @@ json McpClient::send_request(const std::string& method, const json& params) {
 
     try {
         json request = {
-            {"jsonrpc", "2.0"},
+            {"jsonrpc", kJsonRpcVersion},
             {"method", method},
             {"params", params},
             {"id", ++request_id_}

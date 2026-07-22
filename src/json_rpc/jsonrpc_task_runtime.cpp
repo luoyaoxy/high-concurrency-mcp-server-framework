@@ -16,7 +16,7 @@ JsonRpcTaskResult make_rejected_result(
     }
 
     JsonRpcResponse response;
-    response.jsonrpc = "2.0";
+    response.jsonrpc = kJsonRpcVersion;
     response.id = task.request_id.value_or(nullptr);
 
     if (status == TaskSubmitStatus::QueueFull) {
@@ -44,7 +44,7 @@ JsonRpcTaskResult make_timeout_result(
     }
 
     JsonRpcResponse response;
-    response.jsonrpc = "2.0";
+    response.jsonrpc = kJsonRpcVersion;
     response.id = task.request_id.value_or(nullptr);
     response.error = JsonRpcError{
         -32001,

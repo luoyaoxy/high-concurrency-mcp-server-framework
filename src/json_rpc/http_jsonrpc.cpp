@@ -35,7 +35,7 @@ public:
         // 设置错误处理
         server.set_error_handler([](const httplib::Request& /*req*/, httplib::Response& res) {
             json error_response = {
-                {"jsonrpc", "2.0"},
+                {"jsonrpc", kJsonRpcVersion},
                 {"error", {
                     {"code", -32603},
                     {"message", "Internal server error"}
@@ -90,7 +90,7 @@ HttpJsonRpcServer::HttpJsonRpcServer(
         } catch (const std::exception& e) {
             MCP_LOG_ERROR("Error handling request: {}", e.what());
             json error_response = {
-                {"jsonrpc", "2.0"},
+                {"jsonrpc", kJsonRpcVersion},
                 {"error", {
                     {"code", -32603},
                     {"message", e.what()}
@@ -205,7 +205,10 @@ std::string HttpJsonRpcServer::handle_request(const std::string& request_body) {
                 try {
                     // 从 JSON 解析请求
                     JsonRpcRequest req;
-                    req.jsonrpc = single_req_json.value("jsonrpc", "2.0");
+                    req.jsonrpc = single_req_json.value(
+                        "jsonrpc",
+                        kJsonRpcVersion
+                    );
                     req.method = single_req_json.at("method").get<std::string>();
 
                     if (single_req_json.contains("id")) {
@@ -261,7 +264,7 @@ std::string HttpJsonRpcServer::handle_request(const std::string& request_body) {
                 } catch (const std::exception& e) {
                     MCP_LOG_ERROR("Error in batch request: {}", e.what());
                     JsonRpcResponse error_response;
-                    error_response.jsonrpc = "2.0";
+                    error_response.jsonrpc = kJsonRpcVersion;
                     error_response.id = nullptr;
                     error_response.error = JsonRpcError{
                         jsonrpc_errc::InternalError,
@@ -348,7 +351,10 @@ std::string HttpJsonRpcServer::handle_request(const std::string& request_body) {
 
         // 单个请求
         JsonRpcRequest request;
-        request.jsonrpc = request_json.value("jsonrpc", "2.0");
+        request.jsonrpc = request_json.value(
+            "jsonrpc",
+            kJsonRpcVersion
+        );
         request.method = request_json.at("method").get<std::string>();
 
         if (request_json.contains("id")) {
@@ -403,7 +409,7 @@ std::string HttpJsonRpcServer::handle_request(const std::string& request_body) {
     } catch (const json::parse_error& e) {
         MCP_LOG_ERROR("JSON parse error: {}", e.what());
         json error_response = {
-            {"jsonrpc", "2.0"},
+            {"jsonrpc", kJsonRpcVersion},
             {"error", {
                 {"code", jsonrpc_errc::ParseError},
                 {"message", std::string("Parse error: ") + e.what()}
@@ -414,7 +420,7 @@ std::string HttpJsonRpcServer::handle_request(const std::string& request_body) {
     } catch (const std::exception& e) {
         MCP_LOG_ERROR("Error handling request: {}", e.what());
         json error_response = {
-            {"jsonrpc", "2.0"},
+            {"jsonrpc", kJsonRpcVersion},
             {"error", {
                 {"code", jsonrpc_errc::InternalError},
                 {"message", std::string("Internal error: ") + e.what()}

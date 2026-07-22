@@ -62,7 +62,7 @@ struct JsonRpcTask {
     std::uint64_t task_id = 0;
 
     // JSON-RPC 协议字段
-    std::string jsonrpc = "2.0";
+    std::string jsonrpc = kJsonRpcVersion;
     std::optional<json> request_id;
     std::string method;
     json params = json::object();
