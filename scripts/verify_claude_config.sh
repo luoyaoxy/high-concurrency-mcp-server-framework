@@ -6,7 +6,7 @@ echo "=================================="
 echo ""
 
 CONFIG_FILE="$HOME/Library/Application Support/Claude/claude_desktop_config.json"
-MCP_SERVER="/Users/chef/Documents/team_project/mcp-tutorial/build/src/mcp_server"
+MCP_SERVER="<your-build-dir>/mcp_server"
 
 # 1. 检查配置文件是否存在
 echo "1. 检查配置文件..."

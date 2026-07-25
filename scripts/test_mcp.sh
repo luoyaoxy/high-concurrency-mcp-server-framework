@@ -5,8 +5,8 @@ echo "🚀 MCP Server 一键测试脚本"
 echo "========================================"
 echo ""
 
-MCP_SERVER_DIR="/Users/chef/Documents/team_project/mcp-tutorial/build/src"
-AI_DIR="/Users/chef/Documents/team_project/mcp-tutorial/ai_integration"
+MCP_SERVER_DIR="<your-build-dir>"
+AI_DIR="<project-dir>/ai_integration"
 
 # 检查 MCP Server 是否已运行
 if lsof -Pi :8089 -sTCP:LISTEN -t >/dev/null; then
@@ -33,16 +33,12 @@ echo "  1. 💻 Ollama 本地模型（推荐）"
 echo "     - 完全免费，无需 API Key"
 echo "     - 需要先安装: brew install ollama"
 echo ""
-echo "  2. 🌐 硅基流动 API"
-echo "     - 注册送免费额度"
-echo "     - 需要注册: https://cloud.siliconflow.cn/"
-echo ""
-echo "  3. 🔧 简单测试（直接调用工具，不用 AI）"
+echo "  2. 🔧 简单测试（直接调用工具，不用 AI）"
 echo "     - 最快速，直接验证 MCP Server"
 echo ""
 
-read -p "请输入选择 (1/2/3，默认 3): " choice
-choice=${choice:-3}
+read -p "请输入选择 (1/2，默认 2): " choice
+choice=${choice:-2}
 
 cd "$AI_DIR"
 
@@ -100,16 +96,6 @@ case $choice in
         ;;
 
     2)
-        echo ""
-        echo "=== 硅基流动 API 测试 ==="
-        echo ""
-        echo "📝 如果还没有 API Key，请访问:"
-        echo "   https://cloud.siliconflow.cn/"
-        echo ""
-        python siliconflow_mcp_demo.py
-        ;;
-
-    3)
         echo ""
         echo "=== 简单测试（直接调用工具）==="
         echo ""

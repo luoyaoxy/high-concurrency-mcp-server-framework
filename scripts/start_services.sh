@@ -5,7 +5,7 @@ echo "🚀 启动 MCP Server + Ollama 演示环境"
 echo "========================================"
 echo ""
 
-MCP_SERVER_DIR="/Users/chef/Documents/team_project/mcp-tutorial/build/src"
+MCP_SERVER_DIR="<your-build-dir>"
 
 # 1. 启动 MCP Server
 echo "📡 检查 MCP Server..."
@@ -84,7 +84,7 @@ echo "  - MCP Server:  http://localhost:8089"
 echo "  - Ollama:      http://localhost:11434"
 echo ""
 echo "🎯 现在可以运行测试了:"
-echo "  cd /Users/chef/Documents/team_project/mcp-tutorial/ai_integration"
+echo "  cd <project-dir>/ai_integration"
 echo "  python ollama_mcp_demo.py"
 echo ""
 echo "🛑 停止所有服务:"
