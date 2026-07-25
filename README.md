@@ -1,98 +1,98 @@
-# High-Concurrency MCP Server Framework
+# 高并发 MCP Server 框架
 
-A high-performance, concurrent **Model Context Protocol (MCP)** server framework built with C++17. Designed to handle heavy tool-calling workloads with lane-based task isolation, circuit breaking, SSE streaming, and flexible transport support.
+基于 C++17 构建的高性能、高并发 **Model Context Protocol (MCP)** 服务端框架。通过多通道任务隔离、熔断保护、SSE 实时推送以及灵活传输层支持，从容应对高负载工具调用场景。
 
-## Features
+## 核心特性
 
-### Concurrency & Scheduling
+### 并发调度
 
-- **Multi-Lane Task Isolation** — Requests are routed into dedicated execution lanes (`default`, `tool`, `resource`, `prompt`), each with its own bounded queue and worker pool. A slow tool never starves resource reads or prompt generation.
-- **Independent Worker Pools** — Configurable thread count and queue depth per lane, preventing noisy-neighbor problems.
-- **Cancellation & Timeout** — Request-level cancellation tokens with deadline propagation, ensuring cancelled work stops promptly.
-- **Non-blocking Submission** — `submit()` returns a future immediately, enabling fire-and-forget or async result collection.
+- **多通道任务隔离** — 请求按类型路由到独立的执行通道（`default`、`tool`、`resource`、`prompt`），每个通道拥有独立的有界队列与工作线程池，慢工具不会拖垮资源读取或提示词生成。
+- **独立工作线程池** — 每个通道可独立配置线程数与队列容量，彻底消除资源争抢。
+- **取消与超时** — 请求级别的取消令牌 + 截止时间传播，确保已取消的任务及时停止，不浪费计算资源。
+- **非阻塞提交** — `submit()` 调用立即返回 `future`，支持 fire-and-forget 或异步等待结果。
 
-### Reliability
+### 可靠性
 
-- **Circuit Breaker per Tool** — A failing tool is automatically opened after a configurable number of consecutive failures, protecting the worker pool. Half-open probes allow automatic recovery.
-- **Configurable Retry** — Idempotent tools can declare retry policies; the framework handles retries transparently.
-- **Bounded Resource Limits** — Every queue, pool, and client connection is bounded to prevent unbounded memory growth under load.
+- **工具级熔断器** — 某个工具连续失败达到阈值后自动熔断，保护工作线程池。冷却结束后通过半开探测自动恢复。
+- **可配置重试** — 幂等工具可声明重试策略，框架透明处理重试逻辑。
+- **全链路有界限流** — 每个队列、线程池、SSE 连接数均有硬上限，防止高负载下内存无限增长。
 
-### Transport & Streaming
+### 传输与流式推送
 
-- **HTTP JSON-RPC** — Standard JSON-RPC 2.0 over HTTP for request/response communication.
-- **SSE (Server-Sent Events)** — Real-time event streaming on a dedicated port with its own worker pool. Supports per-client replay buffers for missed events.
-- **stdio Transport** — Full stdio-based transport for Claude Desktop and other local MCP integrations.
+- **HTTP JSON-RPC** — 标准 JSON-RPC 2.0 over HTTP，支持请求/响应模式。
+- **SSE（Server-Sent Events）** — 使用独立端口和专用工作线程池驱动实时事件流，支持断线重连后的事件回放。
+- **stdio 传输** — 完整的 stdio 传输支持，可直接接入 Claude Desktop 等本地 MCP 集成场景。
 
-### Observability
+### 可观测性
 
-- **Built-in Metrics** — Scheduler metrics (queue depths, active workers, task latencies) exposed as an MCP resource (`mcp://server/metrics`).
-- **Structured Logging** — `spdlog`-based logging with rotation, configurable levels, and console/file dual output.
+- **内置指标** — 调度器指标（队列深度、活跃线程数、任务延迟）以 MCP 资源形式暴露（`mcp://server/metrics`）。
+- **结构化日志** — 基于 `spdlog`，支持日志轮转、可配置级别、控制台与文件双输出。
 
-### Tool Suite
+### 内置工具
 
-Built-in example tools demonstrate the framework:
+框架自带示例工具，演示完整的工具注册与执行流程：
 
-| Tool | Description |
+| 工具 | 说明 |
 |---|---|
-| `echo` | Echoes back the input message |
-| `calculate` | Performs basic arithmetic (`add`, `subtract`, `multiply`, `divide`) |
-| `get_time` | Returns current system time |
-| `get_weather` | Fetches real weather data via Open-Meteo API |
-| `write_file` | Writes content to disk with path-level locking |
+| `echo` | 回显输入消息 |
+| `calculate` | 基本四则运算（加、减、乘、除） |
+| `get_time` | 获取当前系统时间 |
+| `get_weather` | 通过 Open-Meteo 公开 API 获取真实天气数据 |
+| `write_file` | 文件写入（带路径级互斥锁） |
 
-### Client SDK
+### 客户端 SDK
 
-A ready-to-use C++ client library with full MCP protocol support: `initialize`, `tools/list`, `tools/call`, `resources/list`, `resources/read`, `prompts/list`, `prompts/get`.
+开箱即用的 C++ 客户端库，完整支持 MCP 协议：`initialize`、`tools/list`、`tools/call`、`resources/list`、`resources/read`、`prompts/list`、`prompts/get`。
 
-## Architecture
+## 架构概览
 
 ```
 ┌─────────────────────────────────────────────────────┐
-│                   Transport Layer                    │
+│                    传输层                             │
 │   HTTP JSON-RPC  │  SSE Server  │  stdio Transport  │
 ├─────────────────────────────────────────────────────┤
-│                 Task Runtime                         │
+│                   任务运行时                           │
 │  ┌──────────┐  ┌──────────┐  ┌──────────────────┐  │
 │  │ Default  │  │   Tool   │  │ Resource / Prompt │  │
-│  │  Lane    │  │   Lane   │  │      Lanes        │  │
+│  │   通道   │  │   通道   │  │      通道         │  │
 │  └──────────┘  └──────────┘  └──────────────────┘  │
 │  ┌──────────────────────────────────────────────┐   │
-│  │        Cancellation Registry + Metrics       │   │
+│  │          取消注册中心 + 指标采集              │   │
 │  └──────────────────────────────────────────────┘   │
 ├─────────────────────────────────────────────────────┤
-│                   MCP Server                        │
+│                    MCP Server                        │
 │   Tools  │  Resources  │  Prompts  │  Capabilities  │
 ├─────────────────────────────────────────────────────┤
-│              Reliability Layer                       │
-│   Circuit Breaker  │  Retry Policy  │  Timeouts     │
+│                   可靠机制                            │
+│     熔断器  │  重试策略  │  超时控制                   │
 └─────────────────────────────────────────────────────┘
 ```
 
-## Quick Start
+## 快速开始
 
-### Prerequisites
+### 环境要求
 
-- C++17 compiler (GCC 9+, Clang 10+, or MSVC 2019+)
+- C++17 编译器（GCC 9+ / Clang 10+ / MSVC 2019+）
 - CMake 3.16+
-- [vcpkg](https://github.com/microsoft/vcpkg) for dependency management
+- [vcpkg](https://github.com/microsoft/vcpkg) 依赖管理
 
-### Dependencies
+### 依赖库
 
-| Library | Purpose |
+| 库 | 用途 |
 |---|---|
-| `nlohmann-json` | JSON parsing and serialization |
-| `cpp-httplib` | HTTP server/client |
-| `spdlog` | Structured logging |
-| `libcurl` | External API calls (weather tool) |
-| `Google Test` | Unit testing |
+| `nlohmann-json` | JSON 解析与序列化 |
+| `cpp-httplib` | HTTP 服务端/客户端 |
+| `spdlog` | 结构化日志 |
+| `libcurl` | 外部 API 调用（天气工具） |
+| `Google Test` | 单元测试 |
 
-### Build
+### 编译
 
 ```bash
-# Install dependencies via vcpkg
+# 通过 vcpkg 安装依赖
 vcpkg install curl nlohmann-json spdlog gtest cpp-httplib
 
-# Configure and build
+# 配置并编译
 cmake -B build \
   -DCMAKE_TOOLCHAIN_FILE=[vcpkg-root]/scripts/buildsystems/vcpkg.cmake \
   -DCMAKE_BUILD_TYPE=Release
@@ -100,7 +100,7 @@ cmake -B build \
 cmake --build build
 ```
 
-With AddressSanitizer (debug builds):
+启用 AddressSanitizer（调试构建）：
 
 ```bash
 cmake -B build -DENABLE_ASAN=ON \
@@ -108,50 +108,50 @@ cmake -B build -DENABLE_ASAN=ON \
 cmake --build build
 ```
 
-### Run
+### 启动服务
 
 ```bash
-# HTTP mode (default)
+# HTTP 模式（默认）
 ./build/src/mcp_server --mode http --port 8089
 
-# stdio mode (for Claude Desktop integration)
+# stdio 模式（接入 Claude Desktop）
 ./build/src/mcp_server --mode stdio
 
-# Both modes simultaneously
+# 同时启动两种模式
 ./build/src/mcp_server --mode both --port 8089
 ```
 
-### Configuration
+### 配置说明
 
-Edit [config/server.json](config/server.json):
+编辑 [config/server.json](config/server.json)：
 
 ```jsonc
 {
   "server": {
-    "port": 8089,                // JSON-RPC HTTP port
-    "sse_port": 8090,            // SSE streaming port (dedicated)
-    "sse_workers": 2,            // SSE worker threads
-    "worker_threads": 4,         // Default lane workers
-    "max_pending_tasks": 128,    // Default lane queue capacity
-    "tool_workers": 2,           // Tool lane workers
-    "tool_max_pending_tasks": 32,
-    "tool_circuit_failure_threshold": 5,  // Consecutive failures to open circuit
-    "tool_circuit_open_ms": 30000,       // Circuit open duration (ms)
-    "resource_workers": 2,
-    "resource_max_pending_tasks": 32,
-    "prompt_workers": 2,
-    "prompt_max_pending_tasks": 32,
-    "sse_max_clients": 16,
-    "sse_replay_buffer_events": 256
+    "port": 8089,                           // JSON-RPC HTTP 端口
+    "sse_port": 8090,                       // SSE 流式推送端口（独立）
+    "sse_workers": 2,                       // SSE 工作线程数
+    "worker_threads": 4,                    // Default 通道线程数
+    "max_pending_tasks": 128,               // Default 通道队列容量
+    "tool_workers": 2,                      // Tool 通道线程数
+    "tool_max_pending_tasks": 32,           // Tool 通道队列容量
+    "tool_circuit_failure_threshold": 5,    // 连续失败 N 次触发熔断
+    "tool_circuit_open_ms": 30000,          // 熔断持续时间（毫秒）
+    "resource_workers": 2,                  // Resource 通道线程数
+    "resource_max_pending_tasks": 32,       // Resource 通道队列容量
+    "prompt_workers": 2,                    // Prompt 通道线程数
+    "prompt_max_pending_tasks": 32,         // Prompt 通道队列容量
+    "sse_max_clients": 16,                  // SSE 最大同时连接数
+    "sse_replay_buffer_events": 256         // SSE 事件回放缓冲区大小
   },
   "logging": {
-    "log_level": "info",
-    "log_console_output": true
+    "log_level": "info",                    // 日志级别
+    "log_console_output": true              // 是否输出到控制台
   }
 }
 ```
 
-### Client Example
+### 客户端示例
 
 ```cpp
 #include "mcp_client.h"
@@ -159,17 +159,17 @@ Edit [config/server.json](config/server.json):
 using namespace mcp;
 
 int main() {
-    // Connect to MCP server
+    // 连接 MCP Server
     McpClient client("localhost", 8089);
 
-    // Initialize
+    // 初始化
     auto info = client.initialize();
-    std::cout << "Server: " << info.server_info.name << "\n";
+    std::cout << "服务器: " << info.server_info.name << "\n";
 
-    // List tools
+    // 列出所有工具
     auto tools = client.list_tools();
 
-    // Call a tool
+    // 调用工具
     auto result = client.call_tool("calculate", {
         {"operation", "add"},
         {"a", 123},
@@ -177,41 +177,41 @@ int main() {
     });
     // result.content[0].text => "579"
 
-    // Read a resource
+    // 读取资源
     auto sys_info = client.read_resource("system://info");
 
-    // Stream SSE events
-    // Connect to: http://localhost:8090/sse/events        (server status)
-    // Connect to: http://localhost:8090/sse/tool_calls     (tool call events)
+    // SSE 事件流
+    // 服务器状态流: http://localhost:8090/sse/events
+    // 工具调用流:   http://localhost:8090/sse/tool_calls
 }
 ```
 
-Full example: [examples/client_demo.cpp](examples/client_demo.cpp)
+完整示例见：[examples/client_demo.cpp](examples/client_demo.cpp)
 
-### Run Tests
+### 运行测试
 
 ```bash
 cd build && ctest --output-on-failure
 ```
 
-## Project Structure
+## 项目结构
 
 ```
-├── config/              # JSON configuration files
-├── examples/            # Client SDK usage examples
-├── scripts/             # Utility scripts
+├── config/                  # JSON 配置文件
+├── examples/                # 客户端 SDK 使用示例
+├── scripts/                 # 辅助脚本
 ├── src/
-│   ├── config/          # Config loader with validation
-│   ├── json_rpc/        # JSON-RPC runtime, task scheduling, SSE, transport
-│   ├── logger/          # Logging abstraction (spdlog)
-│   ├── mcp/             # MCP protocol: tools, resources, prompts, circuit breaker
-│   ├── mcp_client/      # Client SDK
-│   └── mcp_server_main.cpp  # Server entry point
-├── tests/               # Unit tests (Google Test)
+│   ├── config/              # 配置加载与校验
+│   ├── json_rpc/            # JSON-RPC 运行时、任务调度、SSE、传输层
+│   ├── logger/              # 日志抽象层（spdlog）
+│   ├── mcp/                 # MCP 协议：工具、资源、提示词、熔断器
+│   ├── mcp_client/          # 客户端 SDK
+│   └── mcp_server_main.cpp  # 服务端入口
+├── tests/                   # 单元测试（Google Test）
 ├── CMakeLists.txt
 └── vcpkg.json
 ```
 
-## License
+## 许可证
 
-This project is available under the MIT License. See [LICENSE](LICENSE) for details.
+本项目采用 MIT 许可证，详见 [LICENSE](LICENSE) 文件。
