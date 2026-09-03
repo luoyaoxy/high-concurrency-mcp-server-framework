@@ -1,7 +1,7 @@
 /**
  * @file stdio_jsonrpc.cpp
  * @brief 基于 stdio 的 JSON-RPC 2.0 服务器
- * 通过标准输入输出通信，使用 Content-Length 头分隔消息
+ * 通过标准输入输出通信，每条 JSON-RPC 消息占一行
  */
 
 #include "jsonrpc.h"
@@ -28,6 +28,39 @@
 
 
 namespace mcp {
+namespace {
+
+bool IsCancellationNotification(const JsonRpcRequest& request) {
+    return !request.id.has_value() &&
+        (request.method == "notifications/cancelled" ||
+         request.method == "$/cancelRequest");
+}
+
+std::optional<json> CancellationRequestId(const JsonRpcRequest& request) {
+    if (!request.params.has_value() || !request.params->is_object()) {
+        return std::nullopt;
+    }
+
+    const char* id_field = request.method == "notifications/cancelled"
+        ? "requestId"
+        : "id";
+    if (!request.params->contains(id_field)) {
+        return std::nullopt;
+    }
+    return std::optional<json>{(*request.params)[id_field]};
+}
+
+std::string Lowercase(std::string value) {
+    std::transform(
+        value.begin(), value.end(), value.begin(),
+        [](unsigned char character) {
+            return static_cast<char>(std::tolower(character));
+        }
+    );
+    return value;
+}
+
+}  // namespace
 
 // ============================================================================
 // JsonRpcDispatcher - 方法调度器
@@ -79,81 +112,80 @@ StdioJsonRpcServer::StdioJsonRpcServer(
 }
 
 
- // 读取一条完整的 JSON-RPC 消息
-
 bool StdioJsonRpcServer::readMessage(std::string& out_body) {
     out_body.clear();
 
     std::string line;
-    size_t content_length = 0;
-    bool found_content_length = false;
-
-    // 读取头部，大小写不敏感，允许额外头部（Content-Type 等）
-    while (std::getline(in_, line)) {
-        // 每行末尾如果带有回车（Windows 风格 CRLF），手动去掉
-        if (!line.empty() && line.back() == '\r') {
-            line.pop_back();
-        }
-
-        // 空行表示头部结束，后面就是消息体
-        if (line.empty()) {
-            break;  // 头部结束
-        }
-
-        auto colon = line.find(':');
-        if (colon == std::string::npos) {
-            // 没有冒号视为非法头，跳过
-            continue;
-        }
-
-        std::string key = line.substr(0, colon);
-        std::string value = line.substr(colon + 1);
-
-        // 去掉 value 前导空格，避免“Content-Length:  42”这种情况
-        size_t pos = value.find_first_not_of(' ');
-        if (pos != std::string::npos) {
-            MCP_LOG_DEBUG("Value: {}", value);
-            value = value.substr(pos);
-        }
-
-        // key 转小写以实现大小写不敏感
-        std::transform(key.begin(), key.end(), key.begin(), [](unsigned char c){ return std::tolower(c); });
-
-        if (key == "content-length") {
-            try {
-                content_length = static_cast<size_t>(std::stoul(value));
-                found_content_length = true;
-            } catch (...) {
-                MCP_LOG_ERROR("Invalid Content-Length: {}", value);
-                return false;
-            }
-        } else if (key == "content-type") {
-            // Content-Type 头部仅记录日志，保持兼容
-            MCP_LOG_DEBUG("Content-Type: {}", value);
-        } else {
-            // 其他自定义头部：记录后忽略
-            MCP_LOG_DEBUG("Ignore header: {}: {}", key, value);
-        }
-    }
-    MCP_LOG_INFO("Found Content-Length: {}", found_content_length);    
-    MCP_LOG_INFO("Content-Length: {}", content_length);
-
-    // 改进：区分 "未找到 Content-Length" 和 "长度为 0"
-    if (!found_content_length) {
+    if (!std::getline(in_, line)) {
         return false;
     }
+    if (!line.empty() && line.back() == '\r') {
+        line.pop_back();
+    }
 
-    if (content_length == 0) {
-        // 允许空消息体
+    if (framing_ == Framing::kUnknown) {
+        const std::size_t colon = line.find(':');
+        const std::string first_field = colon == std::string::npos
+            ? std::string()
+            : Lowercase(line.substr(0, colon));
+        framing_ = first_field == "content-length"
+            ? Framing::kContentLength
+            : Framing::kNewlineDelimited;
+    }
+
+    if (framing_ == Framing::kNewlineDelimited) {
+        out_body = std::move(line);
         return true;
     }
 
-    // 按长度读取消息体
+    std::size_t content_length = 0;
+    bool found_content_length = false;
+    while (true) {
+        const std::size_t colon = line.find(':');
+        if (colon != std::string::npos) {
+            const std::string key = Lowercase(line.substr(0, colon));
+            std::string value = line.substr(colon + 1);
+            const std::size_t value_start = value.find_first_not_of(" \t");
+            value = value_start == std::string::npos
+                ? std::string()
+                : value.substr(value_start);
+
+            if (key == "content-length") {
+                try {
+                    content_length = static_cast<std::size_t>(
+                        std::stoull(value)
+                    );
+                    found_content_length = true;
+                } catch (const std::exception&) {
+                    MCP_LOG_ERROR("Invalid Content-Length: {}", value);
+                    return false;
+                }
+            }
+        }
+
+        if (!std::getline(in_, line)) {
+            return false;
+        }
+        if (!line.empty() && line.back() == '\r') {
+            line.pop_back();
+        }
+        if (line.empty()) {
+            break;
+        }
+    }
+
+    if (!found_content_length || content_length == 0) {
+        MCP_LOG_ERROR("Missing or empty Content-Length header");
+        return false;
+    }
+
     out_body.resize(content_length);
-    size_t total_read = 0;
+    std::size_t total_read = 0;
 
     while (total_read < content_length) {
-        const std::streamsize to_read = static_cast<std::streamsize>(content_length - total_read);
+        const std::streamsize to_read = static_cast<std::streamsize>(
+            content_length - total_read
+        );
         in_.read(&out_body[total_read], to_read);
 
         const std::streamsize just_read = in_.gcount();
@@ -161,29 +193,35 @@ bool StdioJsonRpcServer::readMessage(std::string& out_body) {
             break;
         }
 
-        total_read += static_cast<size_t>(just_read);
+        total_read += static_cast<std::size_t>(just_read);
 
         if (!in_.good() && !in_.eof()) {
             break;
         }
     }
 
-    // 改进：添加日志，便于调试
     if (total_read != content_length) {
-        MCP_LOG_ERROR("Incomplete message: expected {} bytes, got {}", content_length, total_read);
+        MCP_LOG_ERROR(
+            "Incomplete message: expected {} bytes, got {}",
+            content_length,
+            total_read
+        );
         return false;
     }
 
     return true;
 }
 
-/// 写入消息（添加 Content-Length 头）
 void StdioJsonRpcServer::writeMessage(const json& msg) {
     std::lock_guard<std::mutex> lock(output_mutex_);
 
-    std::string payload = msg.dump();
-    out_ << "Content-Length: " << payload.size() << "\r\n\r\n";
-    out_ << payload;
+    const std::string payload = msg.dump();
+    if (framing_ == Framing::kContentLength) {
+        out_ << "Content-Length: " << payload.size() << "\r\n\r\n";
+        out_ << payload;
+    } else {
+        out_ << payload << '\n';
+    }
     out_.flush();
 }
 
@@ -214,20 +252,17 @@ void StdioJsonRpcServer::wait_for_pending_responses() {
 std::optional<JsonRpcResponse> StdioJsonRpcServer::handleRequest(
     const JsonRpcRequest& req
 ) {
-    // $/cancelRequest 是控制 notification，不进入业务任务队列。
-    if (req.method == "$/cancelRequest") {
-        if (
-            !req.params.has_value() ||
-            !req.params->is_object() ||
-            !req.params->contains("id")
-        ) {
+    // 标准 MCP cancellation notification 不进入业务任务队列。
+    if (IsCancellationNotification(req)) {
+        const std::optional<json> request_id = CancellationRequestId(req);
+        if (!request_id.has_value()) {
             MCP_LOG_WARN(
-                "Ignoring invalid stdio $/cancelRequest: missing params.id"
+                "Ignoring invalid stdio cancellation notification"
             );
             return std::nullopt;
         }
 
-        runtime_->cancel_request((*req.params)["id"]);
+        runtime_->cancel_request(*request_id);
 
         // 取消命令本身没有 JSON-RPC 响应。
         return std::nullopt;
@@ -282,6 +317,13 @@ void StdioJsonRpcServer::run() {
         // 解析并处理
         try {
             json j = json::parse(body);
+
+            // 当前服务器不会主动向客户端发 request；合法 response 仅记录并忽略。
+            if (j.is_object() && !j.contains("method") &&
+                (j.contains("result") || j.contains("error"))) {
+                MCP_LOG_DEBUG("Ignoring unsolicited JSON-RPC response");
+                continue;
+            }
 
             // 尝试解析成请求对象；若结构不合法，返回 InvalidRequest
             JsonRpcRequest req;

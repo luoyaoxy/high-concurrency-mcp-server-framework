@@ -1,5 +1,6 @@
 # Build directory
 build/
+/build-vcpkg/
 !build/.gitkeep
 
 # CMake generated files

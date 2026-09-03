@@ -2,6 +2,8 @@
 
 #include "jsonrpc_serialization.h"
 
+#include <stdexcept>
+
 namespace mcp {
 
 // =========================
@@ -18,15 +20,37 @@ void to_json(json& j, const JsonRpcRequest& r) {
 }
 
 void from_json(const json& j, JsonRpcRequest& r) {
-    r.jsonrpc = j.at("jsonrpc").get<std::string>();
-    r.method = j.at("method").get<std::string>();
+    if (!j.is_object()) {
+        throw std::invalid_argument("JSON-RPC request must be an object");
+    }
+    if (!j.contains("jsonrpc") || !j["jsonrpc"].is_string()) {
+        throw std::invalid_argument("JSON-RPC request requires jsonrpc");
+    }
+    if (!j.contains("method") || !j["method"].is_string()) {
+        throw std::invalid_argument("JSON-RPC request requires a string method");
+    }
+
+    r.jsonrpc = j["jsonrpc"].get<std::string>();
+    r.method = j["method"].get<std::string>();
     if (j.contains("id")) {
-        r.id = j.at("id");
+        const json& id = j["id"];
+        if (!id.is_null() && !id.is_string() && !id.is_number()) {
+            throw std::invalid_argument(
+                "JSON-RPC id must be a string, number, or null"
+            );
+        }
+        r.id = id;
     } else {
         r.id.reset();
     }
     if (j.contains("params")) {
-        r.params = j.at("params");
+        const json& params = j["params"];
+        if (!params.is_object() && !params.is_array()) {
+            throw std::invalid_argument(
+                "JSON-RPC params must be an object or array"
+            );
+        }
+        r.params = params;
     } else {
         r.params.reset();
     }

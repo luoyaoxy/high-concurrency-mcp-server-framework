@@ -7,6 +7,22 @@
 
 namespace mcp {
 
+bool IsSupportedProtocolVersion(std::string_view protocol_version) {
+    for (std::string_view supported_version : kSupportedProtocolVersions) {
+        if (protocol_version == supported_version) {
+            return true;
+        }
+    }
+    return false;
+}
+
+std::string NegotiateProtocolVersion(std::string_view requested_version) {
+    if (IsSupportedProtocolVersion(requested_version)) {
+        return std::string(requested_version);
+    }
+    return kLatestProtocolVersion;
+}
+
 json ToolInputSchema::to_json() const {
     json j = {
         {"type", type},
@@ -342,11 +358,15 @@ ServerInfo ServerInfo::from_json(const json& j) {
 }
 
 json InitializeResult::to_json() const {
-    return {
+    json result = {
         {"protocolVersion", protocol_version},
         {"capabilities", capabilities.to_json()},
         {"serverInfo", server_info.to_json()}
     };
+    if (instructions.has_value()) {
+        result["instructions"] = *instructions;
+    }
+    return result;
 }
 
 InitializeResult InitializeResult::from_json(const json& j) {
@@ -354,6 +374,9 @@ InitializeResult InitializeResult::from_json(const json& j) {
     result.protocol_version = j.at("protocolVersion").get<std::string>();
     result.capabilities = ServerCapabilities::from_json(j.at("capabilities"));
     result.server_info = ServerInfo::from_json(j.at("serverInfo"));
+    if (j.contains("instructions")) {
+        result.instructions = j.at("instructions").get<std::string>();
+    }
     return result;
 }
 

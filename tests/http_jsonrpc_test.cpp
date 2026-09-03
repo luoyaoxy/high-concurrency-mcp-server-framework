@@ -388,8 +388,8 @@ TEST_F(HttpJsonRpcBatchTest, CancelsOnlyTheTargetTaskAndKeepsOtherLanesRunning) 
     json batch = json::array({
         {{"jsonrpc", "2.0"}, {"id", 1}, {"method", "tools/call"},
          {"params", json{{"name", "target"}}}},
-        {{"jsonrpc", "2.0"}, {"method", "$/cancelRequest"},
-         {"params", json{{"id", 1}}}},
+        {{"jsonrpc", "2.0"}, {"method", "notifications/cancelled"},
+         {"params", json{{"requestId", 1}, {"reason", "test"}}}},
         {{"jsonrpc", "2.0"}, {"id", 2}, {"method", "resources/read"},
          {"params", json{{"uri", "test://resource"}}}}
     });

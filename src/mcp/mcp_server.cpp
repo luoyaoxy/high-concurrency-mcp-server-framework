@@ -74,9 +74,13 @@ McpServer::McpServer(const std::string& name, const std::string& version) {
     capabilities_.prompts = ServerCapabilities::PromptsCapability{false};
 }
 
-InitializeResult McpServer::get_initialize_result() const {
+InitializeResult McpServer::get_initialize_result(
+    std::string_view requested_protocol_version
+) const {
     InitializeResult result;
-    result.protocol_version = LATEST_PROTOCOL_VERSION;
+    result.protocol_version = NegotiateProtocolVersion(
+        requested_protocol_version
+    );
     result.capabilities = capabilities_;
     result.server_info = server_info_;
     return result;
@@ -124,7 +128,7 @@ ToolResult McpServer::call_tool(
 
         auto it = tool_handlers_.find(name);
         if (it == tool_handlers_.end()) {
-            throw std::runtime_error("Tool not found: " + name);
+            throw std::invalid_argument("Tool not found: " + name);
         }
 
         handler = it->second;

@@ -7,19 +7,35 @@
 
 #pragma once
 
+#include <array>
 #include <nlohmann/json.hpp>
-#include <string>
-#include <vector>
 #include <optional>
+#include <string>
+#include <string_view>
+#include <vector>
 #include <variant>
 
 namespace mcp {
 
 using json = nlohmann::json;
 
-// MCP 协议版本
-constexpr const char* LATEST_PROTOCOL_VERSION = "2024-11-05";
-constexpr const char* DEFAULT_NEGOTIATED_VERSION = "2024-11-05";
+// MCP 协议版本。按从旧到新排列，以便保留原客户端兼容性。
+inline constexpr std::array<std::string_view, 4> kSupportedProtocolVersions = {
+    "2024-11-05",
+    "2025-03-26",
+    "2025-06-18",
+    "2025-11-25",
+};
+inline constexpr char kLatestProtocolVersion[] = "2025-11-25";
+inline constexpr char kDefaultNegotiatedVersion[] = "2024-11-05";
+
+// 保留旧常量名，避免破坏项目已有使用方。
+inline constexpr const char* LATEST_PROTOCOL_VERSION = kLatestProtocolVersion;
+inline constexpr const char* DEFAULT_NEGOTIATED_VERSION =
+    kDefaultNegotiatedVersion;
+
+bool IsSupportedProtocolVersion(std::string_view protocol_version);
+std::string NegotiateProtocolVersion(std::string_view requested_version);
 
 // 进度令牌类型
 using ProgressToken = std::variant<std::string, int64_t>;
@@ -188,6 +204,7 @@ struct InitializeResult {
     std::string protocol_version; // MCP 协议版本
     ServerCapabilities capabilities; // 服务器能力
     ServerInfo server_info; // 服务器信息
+    std::optional<std::string> instructions;
 
     json to_json() const;
     static InitializeResult from_json(const json& j);

@@ -36,7 +36,10 @@ public:
     McpServer(const std::string& name, const std::string& version);
 
     // 获取初始化结果
-    InitializeResult get_initialize_result() const;
+    InitializeResult get_initialize_result(
+        std::string_view requested_protocol_version =
+            kLatestProtocolVersion
+    ) const;
 
     // 设置服务器能力
     void set_capabilities(const ServerCapabilities& capabilities);

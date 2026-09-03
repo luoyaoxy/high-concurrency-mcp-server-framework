@@ -53,14 +53,24 @@ static std::shared_ptr<JsonRpcTaskRuntime> makeRuntime(
 }
 
 static std::string makeFrame(const json& obj) {
-    std::string payload = obj.dump();
-    std::ostringstream os;
-    os << "Content-Length: " << payload.size() << "\r\n\r\n" << payload;
-    return os.str();
+    return obj.dump() + "\n";
 }
 
 static json parseFirstFramePayload(const std::string& framed) {
-    // 期望格式："Content-Length: <n>\r\n\r\n<payload>"
+    const std::size_t newline = framed.find('\n');
+    const std::string payload = framed.substr(0, newline);
+    return json::parse(payload);
+}
+
+static std::string makeContentLengthFrame(const json& obj) {
+    const std::string payload = obj.dump();
+    std::ostringstream output;
+    output << "Content-Length: " << payload.size() << "\r\n\r\n";
+    output << payload;
+    return output.str();
+}
+
+static json parseContentLengthFrame(const std::string& framed) {
     const std::string header = "Content-Length:";
     auto header_pos = framed.find(header);
     if (header_pos == std::string::npos) return json();
@@ -135,6 +145,8 @@ TEST_F(StdioJsonRpcServerTest, BasicSuccess) {
 
     server.run();
     auto out_str = out.str();
+    EXPECT_EQ(out_str.find("Content-Length:"), std::string::npos);
+    EXPECT_EQ(out_str.back(), '\n');
     auto resp_json = parseFirstFramePayload(out_str);
     ASSERT_TRUE(resp_json.contains("result"));
     ASSERT_EQ(resp_json["result"].get<int>(), 3);
@@ -187,16 +199,14 @@ TEST_F(StdioJsonRpcServerTest, InvalidRequestAndParseError) {
     std::stringstream in2;
     std::stringstream out2;
     std::string invalid_json = "{"; // malformed
-    std::ostringstream os;
-    os << "Content-Length: " << invalid_json.size() << "\r\n\r\n" << invalid_json;
-    in2 << os.str();
+    in2 << invalid_json << '\n';
 
     auto runtime2 = makeRuntime(JsonRpcDispatcher{});
     StdioJsonRpcServer server2(runtime2, in2, out2);
 
     server2.run();
     std::string written = out2.str();
-    ASSERT_NE(std::string::npos, written.find("Content-Length:"));
+    ASSERT_EQ(std::string::npos, written.find("Content-Length:"));
     auto resp_json2 = parseFirstFramePayload(written);
     ASSERT_TRUE(resp_json2.contains("error"));
     ASSERT_EQ(resp_json2["error"]["code"].get<int>(), jsonrpc_errc::ParseError);
@@ -219,6 +229,37 @@ TEST_F(StdioJsonRpcServerTest, NotificationNoResponse) {
 
     server.run();
     ASSERT_TRUE(out.str().empty());
+}
+
+TEST_F(StdioJsonRpcServerTest, UnsolicitedResponseIsIgnored) {
+    std::stringstream in;
+    std::stringstream out;
+    in << makeFrame(json{
+        {"jsonrpc", "2.0"}, {"id", 9}, {"result", json::object()}
+    });
+
+    auto runtime = makeRuntime(JsonRpcDispatcher{});
+    StdioJsonRpcServer server(runtime, in, out);
+    server.run();
+
+    EXPECT_TRUE(out.str().empty());
+}
+
+TEST_F(StdioJsonRpcServerTest, RejectsInvalidParamsShape) {
+    std::stringstream in;
+    std::stringstream out;
+    in << makeFrame(json{
+        {"jsonrpc", "2.0"}, {"id", 8}, {"method", "echo"},
+        {"params", "invalid"}
+    });
+
+    auto runtime = makeRuntime(makeDispatcher());
+    StdioJsonRpcServer server(runtime, in, out);
+    server.run();
+
+    const json response = parseFirstFramePayload(out.str());
+    ASSERT_TRUE(response.contains("error"));
+    EXPECT_EQ(response["error"]["code"], jsonrpc_errc::InvalidRequest);
 }
 
 TEST_F(StdioJsonRpcServerTest, CancelsRunningRequestWithoutBlockingReader) {
@@ -278,8 +319,8 @@ TEST_F(StdioJsonRpcServerTest, CancelsRunningRequestWithoutBlockingReader) {
 
     json cancel_request = {
         {"jsonrpc", "2.0"},
-        {"method", "$/cancelRequest"},
-        {"params", json{{"id", 10}}}
+        {"method", "notifications/cancelled"},
+        {"params", json{{"requestId", 10}, {"reason", "test"}}}
     };
     input_buffer.append(makeFrame(cancel_request));
     input_buffer.close();
@@ -293,3 +334,48 @@ TEST_F(StdioJsonRpcServerTest, CancelsRunningRequestWithoutBlockingReader) {
     EXPECT_TRUE(response["result"]["stopped"].get<bool>());
 }
 
+TEST_F(StdioJsonRpcServerTest, PreservesLegacyContentLengthFraming) {
+    JsonRpcDispatcher dispatcher = makeDispatcher();
+    std::stringstream in;
+    std::stringstream out;
+
+    const json request = {
+        {"jsonrpc", "2.0"},
+        {"id", "legacy"},
+        {"method", "echo"},
+        {"params", json{{"value", 7}}}
+    };
+    in << makeContentLengthFrame(request);
+
+    auto runtime = makeRuntime(std::move(dispatcher));
+    StdioJsonRpcServer server(runtime, in, out);
+    server.run();
+
+    ASSERT_EQ(out.str().find("Content-Length:"), 0U);
+    const json response = parseContentLengthFrame(out.str());
+    EXPECT_EQ(response["id"], "legacy");
+    EXPECT_EQ(response["result"]["value"], 7);
+}
+
+TEST_F(StdioJsonRpcServerTest, ConsoleLoggingDoesNotPolluteProtocolOutput) {
+    JsonRpcDispatcher dispatcher = makeDispatcher();
+    std::stringstream in;
+    std::stringstream out;
+
+    const json request = {
+        {"jsonrpc", "2.0"},
+        {"id", 20},
+        {"method", "echo"},
+        {"params", json{{"message", "clean"}}}
+    };
+    in << makeFrame(request);
+
+    auto runtime = makeRuntime(std::move(dispatcher));
+    StdioJsonRpcServer server(runtime, in, out);
+    server.run();
+
+    const std::string protocol_output = out.str();
+    ASSERT_NO_THROW(parseFirstFramePayload(protocol_output));
+    EXPECT_EQ(protocol_output.find("[info]"), std::string::npos);
+    EXPECT_EQ(protocol_output.find("[debug]"), std::string::npos);
+}

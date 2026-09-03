@@ -24,10 +24,12 @@ void Logger::init(const std::string& logger_name,
 
     try {
         std::vector<spdlog::sink_ptr> sinks;
+        bool file_output_enabled = false;
 
         // Add console output sink
         if (console_output) {
-            auto console_sink = std::make_shared<spdlog::sinks::stdout_color_sink_mt>();
+            auto console_sink =
+                std::make_shared<spdlog::sinks::stderr_color_sink_mt>();
             console_sink->set_level(spdlog::level::trace);
             console_sink->set_pattern("[%H:%M:%S.%e] [%^%l%$] [%n] %v");
             sinks.push_back(console_sink);
@@ -35,19 +37,30 @@ void Logger::init(const std::string& logger_name,
 
         // Add file output sink (if file path is specified)
         if (!log_file_path.empty()) {
-            // Create log directory if it doesn't exist
-            std::filesystem::path log_path(log_file_path);
-            std::filesystem::path log_dir = log_path.parent_path();
+            try {
+                // Create log directory if it doesn't exist
+                std::filesystem::path log_path(log_file_path);
+                std::filesystem::path log_dir = log_path.parent_path();
 
-            if (!log_dir.empty() && !std::filesystem::exists(log_dir)) {
-                std::filesystem::create_directories(log_dir);
+                if (!log_dir.empty() && !std::filesystem::exists(log_dir)) {
+                    std::filesystem::create_directories(log_dir);
+                }
+
+                auto file_sink =
+                    std::make_shared<spdlog::sinks::rotating_file_sink_mt>(
+                        log_file_path, max_file_size, max_files);
+                file_sink->set_level(spdlog::level::trace);
+                file_sink->set_pattern(
+                    "[%Y-%m-%d %H:%M:%S.%e] [%l] [%n] [%t] %v"
+                );
+                sinks.push_back(file_sink);
+                file_output_enabled = true;
+            } catch (const std::exception& error) {
+                // stdio servers must remain usable when an optional log file
+                // cannot be created from the client's working directory.
+                std::cerr << "File logging disabled: " << error.what()
+                          << std::endl;
             }
-
-            auto file_sink = std::make_shared<spdlog::sinks::rotating_file_sink_mt>(
-                log_file_path, max_file_size, max_files);
-            file_sink->set_level(spdlog::level::trace);
-            file_sink->set_pattern("[%Y-%m-%d %H:%M:%S.%e] [%l] [%n] [%t] %v");
-            sinks.push_back(file_sink);
         }
 
         // Create logger
@@ -63,7 +76,7 @@ void Logger::init(const std::string& logger_name,
 
         m_logger->info("Logger initialized successfully - name: {}, file: {}, console: {}",
                       logger_name,
-                      log_file_path.empty() ? "disabled" : log_file_path,
+                      file_output_enabled ? log_file_path : "disabled",
                       console_output ? "enabled" : "disabled");
     }
     catch (const spdlog::spdlog_ex& ex) {

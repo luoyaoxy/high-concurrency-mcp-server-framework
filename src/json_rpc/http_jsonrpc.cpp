@@ -20,6 +20,29 @@
 #include <vector>
 
 namespace mcp {
+namespace {
+
+bool IsCancellationNotification(const JsonRpcRequest& request) {
+    return !request.id.has_value() &&
+        (request.method == "notifications/cancelled" ||
+         request.method == "$/cancelRequest");
+}
+
+std::optional<json> CancellationRequestId(const JsonRpcRequest& request) {
+    if (!request.params.has_value() || !request.params->is_object()) {
+        return std::nullopt;
+    }
+
+    const char* id_field = request.method == "notifications/cancelled"
+        ? "requestId"
+        : "id";
+    if (!request.params->contains(id_field)) {
+        return std::nullopt;
+    }
+    return std::optional<json>{(*request.params)[id_field]};
+}
+
+}  // namespace
 
 // Pimpl 实现类
 class HttpJsonRpcServer::Impl {
@@ -203,40 +226,25 @@ std::string HttpJsonRpcServer::handle_request(const std::string& request_body) {
                 BatchEntry& entry = batch_entries.back();
 
                 try {
-                    // 从 JSON 解析请求
-                    JsonRpcRequest req;
-                    req.jsonrpc = single_req_json.value(
-                        "jsonrpc",
-                        kJsonRpcVersion
-                    );
-                    req.method = single_req_json.at("method").get<std::string>();
+                    JsonRpcRequest req =
+                        single_req_json.get<JsonRpcRequest>();
 
-                    if (single_req_json.contains("id")) {
-                        req.id = single_req_json["id"];
-                    }
-
-                    if (single_req_json.contains("params")) {
-                        req.params = single_req_json["params"];
-                    }
-
-                    // 批量中的取消命令同样不能排入业务队列。
-                    if (req.method == "$/cancelRequest") {
-                        if (
-                            !req.params.has_value() ||
-                            !req.params->is_object() ||
-                            !req.params->contains("id")
-                        ) {
+                    // 批量中的取消 notification 同样不能排入业务队列。
+                    if (IsCancellationNotification(req)) {
+                        const std::optional<json> request_id =
+                            CancellationRequestId(req);
+                        if (!request_id.has_value()) {
                             throw std::invalid_argument(
-                                "$/cancelRequest requires params.id"
+                                "cancellation notification requires a request id"
                             );
                         }
 
-                        runtime_->cancel_request((*req.params)["id"]);
+                        runtime_->cancel_request(*request_id);
 
                         // 控制 notification 没有响应，不加入 batch_response。
                         entry.is_notification = true;
                         MCP_LOG_DEBUG(
-                            "HTTP batch_index={} processed $/cancelRequest",
+                            "HTTP batch_index={} processed cancellation",
                             entry.index
                         );
                         continue;
@@ -267,7 +275,7 @@ std::string HttpJsonRpcServer::handle_request(const std::string& request_body) {
                     error_response.jsonrpc = kJsonRpcVersion;
                     error_response.id = nullptr;
                     error_response.error = JsonRpcError{
-                        jsonrpc_errc::InternalError,
+                        jsonrpc_errc::InvalidRequest,
                         e.what(),
                         std::nullopt
                     };
@@ -350,37 +358,21 @@ std::string HttpJsonRpcServer::handle_request(const std::string& request_body) {
         }
 
         // 单个请求
-        JsonRpcRequest request;
-        request.jsonrpc = request_json.value(
-            "jsonrpc",
-            kJsonRpcVersion
-        );
-        request.method = request_json.at("method").get<std::string>();
+        JsonRpcRequest request = request_json.get<JsonRpcRequest>();
 
-        if (request_json.contains("id")) {
-            request.id = request_json["id"];
-        }
-
-        if (request_json.contains("params")) {
-            request.params = request_json["params"];
-        }
-
-        // $/cancelRequest 是控制命令，直接作用于 runtime，
-        // 不应排入任何业务 lane。
-        if (request.method == "$/cancelRequest") {
-            if (
-                !request.params.has_value() ||
-                !request.params->is_object() ||
-                !request.params->contains("id")
-            ) {
+        // 取消 notification 直接作用于 runtime，不排入业务 lane。
+        if (IsCancellationNotification(request)) {
+            const std::optional<json> request_id =
+                CancellationRequestId(request);
+            if (!request_id.has_value()) {
                 throw std::invalid_argument(
-                    "$/cancelRequest requires params.id"
+                    "cancellation notification requires a request id"
                 );
             }
 
-            runtime_->cancel_request((*request.params)["id"]);
+            runtime_->cancel_request(*request_id);
 
-            // $/cancelRequest 按 notification 使用，不返回 JSON-RPC 响应。
+            // cancellation notification 不返回 JSON-RPC 响应。
             return "";
         }
 
@@ -413,6 +405,17 @@ std::string HttpJsonRpcServer::handle_request(const std::string& request_body) {
             {"error", {
                 {"code", jsonrpc_errc::ParseError},
                 {"message", std::string("Parse error: ") + e.what()}
+            }},
+            {"id", nullptr}
+        };
+        return error_response.dump();
+    } catch (const std::invalid_argument& e) {
+        MCP_LOG_ERROR("Invalid JSON-RPC request: {}", e.what());
+        json error_response = {
+            {"jsonrpc", kJsonRpcVersion},
+            {"error", {
+                {"code", jsonrpc_errc::InvalidRequest},
+                {"message", std::string("Invalid Request: ") + e.what()}
             }},
             {"id", nullptr}
         };

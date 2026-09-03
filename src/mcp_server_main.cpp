@@ -220,7 +220,9 @@ void setup_mcp_server(McpServer& mcp) {
         tool.input_schema.required = {"city"};
         // 查询没有副作用；临时网络故障可使用已有重试与熔断机制。
         tool.execution_policy.idempotent = true;
-        tool.execution_policy.timeout_ms = 5000;
+        // 一次查询包含地理编码和天气数据两个串行 HTTP 请求；总预算还需
+        // 覆盖临时网络故障时的两次重试及退避时间。
+        tool.execution_policy.timeout_ms = 20000;
         tool.execution_policy.max_retries = 2;
 
         mcp.register_tool(tool, [](const json& args) -> ToolResult {
@@ -442,10 +444,33 @@ JsonRpcDispatcher create_dispatcher(McpServer& mcp_server) {
     );
 
     // initialize
-    dispatcher.registerHandler("initialize", [&mcp_server](const json& /*params*/) -> json {
+    dispatcher.registerHandler("initialize", [&mcp_server](const json& params) -> json {
+        if (!params.is_object()) {
+            throw std::invalid_argument("initialize params must be an object");
+        }
+        if (!params.contains("protocolVersion") ||
+            !params["protocolVersion"].is_string()) {
+            throw std::invalid_argument(
+                "initialize requires a string protocolVersion"
+            );
+        }
+
+        const std::string requested_version =
+            params["protocolVersion"].get<std::string>();
         MCP_LOG_INFO("Client initialized");
-        return mcp_server.get_initialize_result().to_json();
+        return mcp_server.get_initialize_result(requested_version).to_json();
     });
+
+    // 客户端完成初始化后的生命周期 notification。
+    dispatcher.registerHandler(
+        "notifications/initialized",
+        [](const json& /*params*/) -> json { return json::object(); }
+    );
+
+    dispatcher.registerHandler(
+        "ping",
+        [](const json& /*params*/) -> json { return json::object(); }
+    );
 
     // tools/list
     dispatcher.registerHandler("tools/list", [&mcp_server](const json& /*params*/) -> json {

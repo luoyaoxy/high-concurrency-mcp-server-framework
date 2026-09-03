@@ -47,6 +47,18 @@ TEST_F(McpServerTest, Initialize) {
     EXPECT_EQ(result.server_info.version, "1.0.0");
 }
 
+TEST_F(McpServerTest, NegotiatesEverySupportedProtocolVersion) {
+    for (std::string_view version : kSupportedProtocolVersions) {
+        const auto result = server->get_initialize_result(version);
+        EXPECT_EQ(result.protocol_version, version);
+    }
+}
+
+TEST_F(McpServerTest, UnsupportedProtocolVersionUsesLatestSupportedVersion) {
+    const auto result = server->get_initialize_result("2099-01-01");
+    EXPECT_EQ(result.protocol_version, kLatestProtocolVersion);
+}
+
 // ===== Tools 测试 =====
 
 TEST_F(McpServerTest, RegisterTool) {
@@ -116,7 +128,7 @@ TEST_F(McpServerTest, CallNonexistentTool) {
 
     EXPECT_THROW({
         server->call_tool("nonexistent", args);
-    }, std::runtime_error);
+    }, std::invalid_argument);
 }
 
 // ===== Resources 测试 =====

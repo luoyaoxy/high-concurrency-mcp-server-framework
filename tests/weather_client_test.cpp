@@ -87,3 +87,29 @@ TEST(WeatherClientTest, StopsBeforeMakingNetworkRequest) {
     );
     EXPECT_FALSE(requested);
 }
+
+TEST(WeatherClientTest, StopsBetweenGeocodingAndForecastRequests) {
+    int request_count = 0;
+    bool cancelled = false;
+    WeatherClient client(
+        [&request_count, &cancelled](const std::string&) {
+            ++request_count;
+            cancelled = true;
+            return R"({
+                "results": [{
+                    "name": "Shanghai",
+                    "country": "China",
+                    "latitude": 31.2304,
+                    "longitude": 121.4737
+                }]
+            })";
+        },
+        [&cancelled] { return cancelled; }
+    );
+
+    EXPECT_THROW(
+        client.get_current_weather("Shanghai"),
+        WeatherRequestCancelled
+    );
+    EXPECT_EQ(request_count, 1);
+}
