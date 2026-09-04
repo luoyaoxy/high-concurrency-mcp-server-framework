@@ -162,3 +162,14 @@ target_link_libraries(test_weather_client
 )
 
 gtest_discover_tests(test_weather_client)
+
+# 通过真实 stdio server 验证 tools/call 参数错误映射。
+find_program(PYTHON3_EXECUTABLE python3 REQUIRED)
+add_test(
+    NAME ToolsCallValidationIntegrationTest
+    COMMAND
+        ${PYTHON3_EXECUTABLE}
+        ${CMAKE_CURRENT_SOURCE_DIR}/tools_call_validation_test.py
+        $<TARGET_FILE:mcp_server>
+        ${PROJECT_SOURCE_DIR}/config/server.json
+)

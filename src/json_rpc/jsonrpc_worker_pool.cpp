@@ -273,6 +273,7 @@ void JsonRpcWorkerPool::worker_loop(std::size_t worker_index) {
         // 已完成的请求不再允许被取消，也不应继续占用登记表。
         if (envelope->task.request_id.has_value()) {
             cancellation_registry_.unregister_request(
+                envelope->task.client_id,
                 *envelope->task.request_id
             );
         }

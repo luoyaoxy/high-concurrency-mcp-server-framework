@@ -126,13 +126,20 @@ void HttpSseServer::register_sse_endpoint(
                     std::size_t /*offset*/,
                     httplib::DataSink& sink
                 ) {
+                    bool write_failed = false;
+
                     // 每条 SSE 消息带可恢复的 id，并按协议逐行写入 data。
                     const auto send_event = [
-                        &sink
+                        &sink,
+                        &write_failed
                     ](
                         std::optional<std::uint64_t> event_id,
                         const std::string& data
                     ) {
+                        if (write_failed) {
+                            return false;
+                        }
+
                         std::string event;
                         if (event_id.has_value()) {
                             event += "id: " + std::to_string(*event_id) + "\n";
@@ -155,7 +162,9 @@ void HttpSseServer::register_sse_endpoint(
                             line_start = line_end + 1;
                         }
                         event += "\n";
-                        sink.write(event.c_str(), event.size());
+                        write_failed =
+                            !sink.write(event.c_str(), event.size());
+                        return !write_failed;
                     };
 
                     try {
@@ -170,8 +179,8 @@ void HttpSseServer::register_sse_endpoint(
                         );
                     }
 
-                    // 回调控制连接生命周期，provider 本身保持有效。
-                    return true;
+                    // write 失败表示客户端已断开，立即结束当前 provider。
+                    return !write_failed;
                 }
             );
         }

@@ -485,8 +485,24 @@ JsonRpcDispatcher create_dispatcher(McpServer& mcp_server) {
     dispatcher.registerHandler(
         "tools/call",
         [&mcp_server, tool_circuit_breaker](const json& params) -> json {
-        std::string name = params.at("name").get<std::string>();
-        json arguments = params.value("arguments", json::object());
+        if (!params.is_object()) {
+            throw std::invalid_argument(
+                "tools/call params must be an object"
+            );
+        }
+        if (!params.contains("name") || !params["name"].is_string()) {
+            throw std::invalid_argument(
+                "tools/call requires a string name"
+            );
+        }
+        if (params.contains("arguments") && !params["arguments"].is_object()) {
+            throw std::invalid_argument(
+                "tools/call arguments must be an object"
+            );
+        }
+
+        const std::string name = params["name"].get<std::string>();
+        const json arguments = params.value("arguments", json::object());
 
         if (!tool_circuit_breaker->allow_call(name)) {
             MCP_LOG_WARN("Tool circuit is open: {}", name);
@@ -724,10 +740,12 @@ void run_http_mode(
                 *subscription
             );
 
-            send(std::nullopt, json({
+            if (!send(std::nullopt, json({
                 {"type", "connected"},
                 {"message", "Server events stream"}
-            }).dump());
+            }).dump())) {
+                return;
+            }
 
             while (g_running.load()) {
                 const auto event = status_sse_hub->wait_and_pop(
@@ -736,7 +754,9 @@ void run_http_mode(
                 );
 
                 if (event.has_value()) {
-                    send(event->id, event->payload);
+                    if (!send(event->id, event->payload)) {
+                        break;
+                    }
                 }
             }
 
@@ -780,10 +800,12 @@ void run_http_mode(
                 *subscription
             );
 
-            send(std::nullopt, json({
+            if (!send(std::nullopt, json({
                 {"type", "connected"},
                 {"message", "Tool calls monitoring"}
-            }).dump());
+            }).dump())) {
+                return;
+            }
 
             while (g_running.load()) {
                 // 每次只消费当前客户端自己的一条事件。
@@ -797,7 +819,9 @@ void run_http_mode(
                     continue;
                 }
 
-                send(event->id, event->payload);
+                if (!send(event->id, event->payload)) {
+                    break;
+                }
             }
 
             MCP_LOG_INFO(

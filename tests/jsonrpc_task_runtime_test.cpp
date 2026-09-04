@@ -249,7 +249,7 @@ TEST_F(JsonRpcTaskRuntimeTest, CancelsQueuedTaskBeforeHandlerRuns) {
     auto cancelled_submission = runtime->submit(cancelled_task);
 
     // 第二个任务仍在队列中，按 id 标记取消。
-    EXPECT_TRUE(runtime->cancel_request(2));
+    EXPECT_TRUE(runtime->cancel_request("test", 2));
 
     // 释放第一个任务后，worker 会取到已取消的第二个任务。
     release_guard.release();
@@ -667,15 +667,32 @@ TEST(JsonRpcCancellationRegistryTest, CancelsOnlyMatchingRequestId) {
     CancellationToken string_id_token;
 
     // 数字 7 与字符串 "7" 是两个不同的 JSON-RPC id。
-    registry.register_request(json(7), numeric_id_token);
-    registry.register_request(json("7"), string_id_token);
+    registry.register_request("client", json(7), numeric_id_token);
+    registry.register_request("client", json("7"), string_id_token);
 
     // 取消数字 id 只应影响对应的 token。
-    EXPECT_TRUE(registry.cancel_request(json(7)));
+    EXPECT_TRUE(registry.cancel_request("client", json(7)));
     EXPECT_TRUE(numeric_id_token.is_cancelled());
     EXPECT_FALSE(string_id_token.is_cancelled());
 
     // 请求清理后，相同 id 不应再能被取消。
-    registry.unregister_request(json(7));
-    EXPECT_FALSE(registry.cancel_request(json(7)));
+    registry.unregister_request("client", json(7));
+    EXPECT_FALSE(registry.cancel_request("client", json(7)));
+}
+
+TEST(JsonRpcCancellationRegistryTest, IsolatesSameRequestIdByClient) {
+    JsonRpcCancellationRegistry registry;
+
+    CancellationToken client_a_token;
+    CancellationToken client_b_token;
+    registry.register_request("client-a", json(1), client_a_token);
+    registry.register_request("client-b", json(1), client_b_token);
+
+    EXPECT_TRUE(registry.cancel_request("client-a", json(1)));
+    EXPECT_TRUE(client_a_token.is_cancelled());
+    EXPECT_FALSE(client_b_token.is_cancelled());
+
+    registry.unregister_request("client-a", json(1));
+    EXPECT_FALSE(registry.cancel_request("client-a", json(1)));
+    EXPECT_TRUE(registry.cancel_request("client-b", json(1)));
 }

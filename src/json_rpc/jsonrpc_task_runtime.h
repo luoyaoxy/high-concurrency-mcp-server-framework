@@ -57,8 +57,11 @@ public:
         std::optional<JsonRpcTaskCompletionCallback> on_completed = std::nullopt
     );
 
-    // 按 JSON-RPC request id 取消仍在排队或执行中的任务。
-    bool cancel_request(const json& request_id);
+    // 按 client id 和 JSON-RPC request id 取消对应任务。
+    bool cancel_request(
+        const std::string& client_id,
+        const json& request_id
+    );
 
     // HTTP 等入口记录传输层请求，不计入 JSON-RPC task 总数。
     void record_http_request();

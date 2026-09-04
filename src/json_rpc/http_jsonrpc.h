@@ -47,7 +47,10 @@ private:
     class Impl;
     std::unique_ptr<Impl> impl_;
 
-    std::string handle_request(const std::string& request_body);
+    std::string handle_request(
+        const std::string& request_body,
+        const std::string& client_id
+    );
 };
 
 } // namespace mcp

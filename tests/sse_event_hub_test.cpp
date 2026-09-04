@@ -1,9 +1,37 @@
+#include "http_sse_server.h"
 #include "sse_event_hub.h"
 
 #include <gtest/gtest.h>
+#include <httplib.h>
+
+#include <atomic>
+#include <chrono>
+#include <future>
+#include <memory>
+#include <string>
+#include <thread>
 
 namespace mcp {
 namespace {
+
+std::atomic<int> g_next_sse_test_port{19280};
+
+class RunningSseServer {
+public:
+    explicit RunningSseServer(HttpSseServer& server)
+        : server_(server), thread_([this] { server_.run(); }) {}
+
+    ~RunningSseServer() {
+        server_.stop();
+        if (thread_.joinable()) {
+            thread_.join();
+        }
+    }
+
+private:
+    HttpSseServer& server_;
+    std::thread thread_;
+};
 
 TEST(SseEventHubTest, RejectsSubscriptionWhenClientLimitReached) {
     // Hub 最多只允许两个 SSE 客户端订阅。
@@ -199,6 +227,79 @@ TEST(SseEventHubTest, ExposesIdGapWhenClientQueueOverflows) {
     );
     ASSERT_TRUE(resumed_event.has_value());
     EXPECT_EQ(resumed_event->id, 3u);
+}
+
+TEST(HttpSseServerTest, WriteFailureEndsCallbackAndReleasesSubscription) {
+    const int port = g_next_sse_test_port.fetch_add(1);
+    auto hub = std::make_shared<SseEventHub>(1, 8);
+    std::promise<void> callback_started;
+    std::future<void> callback_started_result =
+        callback_started.get_future();
+    std::promise<void> callback_finished;
+    std::future<void> callback_finished_result =
+        callback_finished.get_future();
+
+    HttpSseServer server("127.0.0.1", port, 1);
+    server.register_sse_endpoint(
+        "/sse/test",
+        [hub, &callback_started, &callback_finished](
+            std::optional<std::uint64_t>,
+            const HttpSseServer::SseSend& send
+        ) {
+            const auto subscription = hub->subscribe();
+            if (!subscription.has_value()) {
+                callback_finished.set_value();
+                return;
+            }
+
+            struct SubscriptionGuard {
+                std::shared_ptr<SseEventHub> hub;
+                SseEventHub::SubscriptionId id;
+
+                ~SubscriptionGuard() {
+                    hub->unsubscribe(id);
+                }
+            } guard{hub, *subscription};
+
+            callback_started.set_value();
+            const std::string payload(256 * 1024, 'x');
+            while (send(std::nullopt, payload)) {
+                std::this_thread::sleep_for(std::chrono::milliseconds(1));
+            }
+            callback_finished.set_value();
+        }
+    );
+
+    RunningSseServer running_server(server);
+    httplib::Client readiness_client("127.0.0.1", port);
+    bool ready = false;
+    for (int attempt = 0; attempt < 100; ++attempt) {
+        if (readiness_client.Get("/")) {
+            ready = true;
+            break;
+        }
+        std::this_thread::sleep_for(std::chrono::milliseconds(5));
+    }
+    ASSERT_TRUE(ready);
+
+    auto client_result = std::async(std::launch::async, [port] {
+        httplib::Client client("127.0.0.1", port);
+        return client.Get(
+            "/sse/test",
+            [](const char*, std::size_t) { return false; }
+        );
+    });
+
+    ASSERT_EQ(
+        callback_started_result.wait_for(std::chrono::seconds(1)),
+        std::future_status::ready
+    );
+    ASSERT_EQ(
+        callback_finished_result.wait_for(std::chrono::seconds(2)),
+        std::future_status::ready
+    );
+    EXPECT_EQ(hub->subscriber_count(), 0u);
+    client_result.wait();
 }
 
 } // namespace

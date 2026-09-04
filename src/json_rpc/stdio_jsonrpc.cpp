@@ -262,7 +262,7 @@ std::optional<JsonRpcResponse> StdioJsonRpcServer::handleRequest(
             return std::nullopt;
         }
 
-        runtime_->cancel_request(*request_id);
+        runtime_->cancel_request("stdio", *request_id);
 
         // 取消命令本身没有 JSON-RPC 响应。
         return std::nullopt;

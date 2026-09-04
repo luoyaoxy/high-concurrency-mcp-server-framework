@@ -42,6 +42,11 @@ std::optional<json> CancellationRequestId(const JsonRpcRequest& request) {
     return std::optional<json>{(*request.params)[id_field]};
 }
 
+std::string HttpClientId(const httplib::Request& request) {
+    return "http:" + request.remote_addr + ":" +
+        std::to_string(request.remote_port);
+}
+
 }  // namespace
 
 // Pimpl 实现类
@@ -107,7 +112,10 @@ HttpJsonRpcServer::HttpJsonRpcServer(
         res.set_header("Access-Control-Allow-Headers", "Content-Type");
 
         try {
-            std::string response = handle_request(req.body);
+            std::string response = handle_request(
+                req.body,
+                HttpClientId(req)
+            );
             res.set_content(response, "application/json");
             res.status = 200;
         } catch (const std::exception& e) {
@@ -188,7 +196,10 @@ void HttpJsonRpcServer::stop() {
     impl_->server.stop();
 }
 
-std::string HttpJsonRpcServer::handle_request(const std::string& request_body) {
+std::string HttpJsonRpcServer::handle_request(
+    const std::string& request_body,
+    const std::string& client_id
+) {
     MCP_LOG_DEBUG("Request body: {}", request_body);
 
     // 传输层请求数包含解析失败的 HTTP JSON-RPC 请求。
@@ -239,7 +250,7 @@ std::string HttpJsonRpcServer::handle_request(const std::string& request_body) {
                             );
                         }
 
-                        runtime_->cancel_request(*request_id);
+                        runtime_->cancel_request(client_id, *request_id);
 
                         // 控制 notification 没有响应，不加入 batch_response。
                         entry.is_notification = true;
@@ -253,7 +264,7 @@ std::string HttpJsonRpcServer::handle_request(const std::string& request_body) {
                     // 每个批量元素都有独立的超时截止时间。
                     entry.task = make_jsonrpc_task(
                         req,
-                        "http",
+                        client_id,
                         std::chrono::milliseconds(MCP_CONFIG.GetRequestTimeoutMs())
                     );
 
@@ -370,7 +381,7 @@ std::string HttpJsonRpcServer::handle_request(const std::string& request_body) {
                 );
             }
 
-            runtime_->cancel_request(*request_id);
+            runtime_->cancel_request(client_id, *request_id);
 
             // cancellation notification 不返回 JSON-RPC 响应。
             return "";
@@ -378,7 +389,7 @@ std::string HttpJsonRpcServer::handle_request(const std::string& request_body) {
 
         JsonRpcTask task = make_jsonrpc_task(
             request,
-            "http",
+            client_id,
             std::chrono::milliseconds(MCP_CONFIG.GetRequestTimeoutMs())
         );
 

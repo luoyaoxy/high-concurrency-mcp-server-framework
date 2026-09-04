@@ -13,8 +13,8 @@ namespace mcp {
 // 只承载 SSE 长连接的独立 HTTP 服务。
 class HttpSseServer {
 public:
-    // 回调通过 send(event_id, data) 向当前 SSE 客户端推送一条数据。
-    using SseSend = std::function<void(
+    // 回调通过 send(event_id, data) 推送数据；false 表示连接已断开。
+    using SseSend = std::function<bool(
         std::optional<std::uint64_t> event_id,
         const std::string& data
     )>;

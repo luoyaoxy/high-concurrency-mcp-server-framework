@@ -174,6 +174,7 @@ TaskSubmission JsonRpcTaskRuntime::submit(
     // notification 没有 request id，无法被 $/cancelRequest 定位。
     if (envelope->task.request_id.has_value()) {
         cancellation_registry_.register_request(
+            envelope->task.client_id,
             *envelope->task.request_id,
             envelope->task.cancellation
         );
@@ -216,6 +217,7 @@ TaskSubmission JsonRpcTaskRuntime::submit(
         // 未入队的任务不会由 worker 清理，需要在这里立即移除登记。
         if (envelope->task.request_id.has_value()) {
             cancellation_registry_.unregister_request(
+                envelope->task.client_id,
                 *envelope->task.request_id
             );
         }
@@ -256,10 +258,11 @@ void JsonRpcTaskRuntime::record_batch_request(
 }
 
 bool JsonRpcTaskRuntime::cancel_request(
+    const std::string& client_id,
     const json& request_id
 ) {
     const bool cancelled =
-        cancellation_registry_.cancel_request(request_id);
+        cancellation_registry_.cancel_request(client_id, request_id);
 
     if (cancelled) {
         MCP_LOG_INFO(
