@@ -10,17 +10,22 @@
 
 #include <httplib.h>
 #include <nlohmann/json.hpp>
+#include <openssl/rand.h>
 
 #include "jsonrpc_task.h"
 
-#include <stdexcept>
-
+#include <array>
 #include <chrono>
+#include <mutex>
 #include <optional>
+#include <stdexcept>
+#include <unordered_set>
 #include <vector>
 
 namespace mcp {
 namespace {
+
+constexpr char kMcpSessionIdHeader[] = "Mcp-Session-Id";
 
 bool IsCancellationNotification(const JsonRpcRequest& request) {
     return !request.id.has_value() &&
@@ -42,9 +47,56 @@ std::optional<json> CancellationRequestId(const JsonRpcRequest& request) {
     return std::optional<json>{(*request.params)[id_field]};
 }
 
-std::string HttpClientId(const httplib::Request& request) {
-    return "http:" + request.remote_addr + ":" +
-        std::to_string(request.remote_port);
+bool IsInitializeRequest(const std::string& request_body) {
+    try {
+        const json request = json::parse(request_body);
+        return request.is_object() &&
+            request.contains("method") &&
+            request["method"].is_string() &&
+            request["method"] == "initialize";
+    } catch (const json::parse_error&) {
+        return false;
+    }
+}
+
+bool IsSuccessfulResponse(const std::string& response_body) {
+    try {
+        const json response = json::parse(response_body);
+        return response.is_object() && response.contains("result");
+    } catch (const json::parse_error&) {
+        return false;
+    }
+}
+
+std::string GenerateSessionId() {
+    std::array<unsigned char, 32> random_bytes{};
+    if (
+        RAND_bytes(
+            random_bytes.data(),
+            static_cast<int>(random_bytes.size())
+        ) != 1
+    ) {
+        throw std::runtime_error("Failed to generate MCP session ID");
+    }
+
+    constexpr char kHexDigits[] = "0123456789abcdef";
+    std::string session_id;
+    session_id.reserve(random_bytes.size() * 2);
+    for (unsigned char byte : random_bytes) {
+        session_id.push_back(kHexDigits[byte >> 4]);
+        session_id.push_back(kHexDigits[byte & 0x0f]);
+    }
+    return session_id;
+}
+
+std::string SessionClientId(const std::string& session_id) {
+    return "http:session:" + session_id;
+}
+
+std::string LegacyClientId() {
+    // 无 session header 时无法安全关联多个 HTTP 请求；每个 POST 使用
+    // 独立标识，既保留普通请求与单个 batch，又避免取消其他客户端任务。
+    return "http:legacy:" + GenerateSessionId();
 }
 
 }  // namespace
@@ -53,6 +105,18 @@ std::string HttpClientId(const httplib::Request& request) {
 class HttpJsonRpcServer::Impl {
 public:
     httplib::Server server;
+
+    void register_session(const std::string& session_id) {
+        std::lock_guard<std::mutex> lock(sessions_mutex_);
+        if (!sessions_.insert(session_id).second) {
+            throw std::runtime_error("Duplicate MCP session ID");
+        }
+    }
+
+    bool has_session(const std::string& session_id) {
+        std::lock_guard<std::mutex> lock(sessions_mutex_);
+        return sessions_.find(session_id) != sessions_.end();
+    }
 
     Impl() {
         // 设置日志回调
@@ -73,6 +137,10 @@ public:
             res.set_content(error_response.dump(), "application/json");
         });
     }
+
+private:
+    std::mutex sessions_mutex_;
+    std::unordered_set<std::string> sessions_;
 };
 
 HttpJsonRpcServer::HttpJsonRpcServer(
@@ -109,13 +177,48 @@ HttpJsonRpcServer::HttpJsonRpcServer(
         // 设置 CORS 头
         res.set_header("Access-Control-Allow-Origin", "*");
         res.set_header("Access-Control-Allow-Methods", "POST, OPTIONS");
-        res.set_header("Access-Control-Allow-Headers", "Content-Type");
+        res.set_header(
+            "Access-Control-Allow-Headers",
+            "Content-Type, Mcp-Session-Id"
+        );
+        res.set_header("Access-Control-Expose-Headers", kMcpSessionIdHeader);
 
         try {
+            const bool is_initialize = IsInitializeRequest(req.body);
+            std::string session_id =
+                req.get_header_value(kMcpSessionIdHeader);
+
+            if (!session_id.empty() && !impl_->has_session(session_id)) {
+                json error_response = {
+                    {"jsonrpc", kJsonRpcVersion},
+                    {"error", {
+                        {"code", -32000},
+                        {"message", "MCP session not found"}
+                    }},
+                    {"id", nullptr}
+                };
+                res.set_content(error_response.dump(), "application/json");
+                res.status = 404;
+                return;
+            }
+
+            const bool create_session = is_initialize && session_id.empty();
+            if (create_session) {
+                session_id = GenerateSessionId();
+            }
+
+            const std::string client_id = session_id.empty()
+                ? LegacyClientId()
+                : SessionClientId(session_id);
             std::string response = handle_request(
                 req.body,
-                HttpClientId(req)
+                client_id
             );
+
+            if (create_session && IsSuccessfulResponse(response)) {
+                impl_->register_session(session_id);
+                res.set_header(kMcpSessionIdHeader, session_id);
+            }
             res.set_content(response, "application/json");
             res.status = 200;
         } catch (const std::exception& e) {
@@ -137,7 +240,10 @@ HttpJsonRpcServer::HttpJsonRpcServer(
     impl_->server.Options("/jsonrpc", [](const httplib::Request& /*req*/, httplib::Response& res) {
         res.set_header("Access-Control-Allow-Origin", "*");
         res.set_header("Access-Control-Allow-Methods", "POST, OPTIONS");
-        res.set_header("Access-Control-Allow-Headers", "Content-Type");
+        res.set_header(
+            "Access-Control-Allow-Headers",
+            "Content-Type, Mcp-Session-Id"
+        );
         res.status = 204;
     });
 

@@ -1,4 +1,5 @@
 #include "http_jsonrpc.h"
+#include "jsonrpc_request_context.h"
 #include "jsonrpc_task.h"
 #include "jsonrpc_task_runtime.h"
 #include "logger.h"
@@ -6,7 +7,9 @@
 #include <gtest/gtest.h>
 #include <httplib.h>
 
+#include <algorithm>
 #include <atomic>
+#include <cctype>
 #include <chrono>
 #include <future>
 #include <memory>
@@ -230,6 +233,234 @@ TEST_F(HttpJsonRpcBatchTest, KeepsLocalFailuresInsideBatch) {
     EXPECT_EQ(response_json[0]["id"], 1);
     EXPECT_TRUE(response_json[1].contains("error"));
     EXPECT_EQ(response_json[2]["id"], 3);
+}
+
+TEST_F(HttpJsonRpcBatchTest, ManagesMcpSessionIdAndLegacyRequests) {
+    JsonRpcDispatcher dispatcher;
+    dispatcher.registerHandler("initialize", [](const json&) {
+        return json{{"protocolVersion", "2025-11-25"}};
+    });
+    dispatcher.registerHandler("echo", [](const json& params) {
+        return params;
+    });
+
+    auto runtime = std::make_shared<JsonRpcTaskRuntime>(
+        std::move(dispatcher),
+        8,
+        2
+    );
+    HttpBatchTestServer server(runtime);
+    server.start();
+
+    const json initialize = {
+        {"jsonrpc", "2.0"},
+        {"id", 1},
+        {"method", "initialize"},
+        {"params", json::object()}
+    };
+    httplib::Client initialize_client("127.0.0.1", server.port());
+    auto initialize_response = initialize_client.Post(
+        "/jsonrpc",
+        initialize.dump(),
+        "application/json"
+    );
+    ASSERT_TRUE(initialize_response);
+    ASSERT_EQ(initialize_response->status, 200);
+    const std::string session_id =
+        initialize_response->get_header_value("Mcp-Session-Id");
+    ASSERT_EQ(session_id.size(), 64u);
+    EXPECT_TRUE(std::all_of(
+        session_id.begin(),
+        session_id.end(),
+        [](unsigned char character) {
+            return std::isxdigit(character) != 0;
+        }
+    ));
+
+    const json echo = {
+        {"jsonrpc", "2.0"},
+        {"id", 2},
+        {"method", "echo"},
+        {"params", json{{"value", "ok"}}}
+    };
+    httplib::Client session_client("127.0.0.1", server.port());
+    auto session_response = session_client.Post(
+        "/jsonrpc",
+        {{"Mcp-Session-Id", session_id}},
+        echo.dump(),
+        "application/json"
+    );
+    ASSERT_TRUE(session_response);
+    EXPECT_EQ(session_response->status, 200);
+
+    httplib::Client invalid_session_client("127.0.0.1", server.port());
+    auto invalid_session_response = invalid_session_client.Post(
+        "/jsonrpc",
+        {{"Mcp-Session-Id", "unknown-session"}},
+        echo.dump(),
+        "application/json"
+    );
+    ASSERT_TRUE(invalid_session_response);
+    EXPECT_EQ(invalid_session_response->status, 404);
+
+    // 未携带 session header 的旧 HTTP 客户端继续使用兼容路径。
+    httplib::Client legacy_client("127.0.0.1", server.port());
+    auto legacy_response = legacy_client.Post(
+        "/jsonrpc",
+        echo.dump(),
+        "application/json"
+    );
+    ASSERT_TRUE(legacy_response);
+    EXPECT_EQ(legacy_response->status, 200);
+}
+
+TEST_F(HttpJsonRpcBatchTest, CancelsAcrossConnectionsWithinSameSession) {
+    std::promise<void> handlers_started;
+    std::future<void> handlers_started_result = handlers_started.get_future();
+    std::atomic_int started_count{0};
+    std::atomic_bool client_a_cancelled{false};
+    std::atomic_bool client_b_cancelled{false};
+    std::promise<void> release_handlers;
+    std::shared_future<void> release_signal =
+        release_handlers.get_future().share();
+    ReleaseGuard release_guard(release_handlers);
+
+    JsonRpcDispatcher dispatcher;
+    dispatcher.registerHandler("initialize", [](const json&) {
+        return json{{"protocolVersion", "2025-11-25"}};
+    });
+    dispatcher.registerHandler(
+        "slow",
+        [
+            &handlers_started,
+            &started_count,
+            &client_a_cancelled,
+            &client_b_cancelled,
+            release_signal
+        ](const json& params) {
+            if (started_count.fetch_add(1) + 1 == 2) {
+                handlers_started.set_value();
+            }
+
+            const std::string client = params.at("client").get<std::string>();
+            while (
+                release_signal.wait_for(std::chrono::milliseconds(1)) !=
+                std::future_status::ready
+            ) {
+                const JsonRpcRequestContext* context =
+                    current_jsonrpc_request_context();
+                if (context != nullptr && context->is_cancelled()) {
+                    if (client == "a") {
+                        client_a_cancelled.store(true);
+                    } else {
+                        client_b_cancelled.store(true);
+                    }
+                    return json{{"cancelled", true}};
+                }
+            }
+            return json{{"cancelled", false}};
+        }
+    );
+
+    auto runtime = std::make_shared<JsonRpcTaskRuntime>(
+        std::move(dispatcher),
+        8,
+        4
+    );
+    HttpBatchTestServer server(runtime);
+    server.start();
+
+    const auto initialize_session = [&server](int request_id) {
+        httplib::Client client("127.0.0.1", server.port());
+        const json request = {
+            {"jsonrpc", "2.0"},
+            {"id", request_id},
+            {"method", "initialize"},
+            {"params", json::object()}
+        };
+        auto response = client.Post(
+            "/jsonrpc",
+            request.dump(),
+            "application/json"
+        );
+        if (!response || response->status != 200) {
+            return std::string{};
+        }
+        return response->get_header_value("Mcp-Session-Id");
+    };
+
+    const std::string session_a = initialize_session(10);
+    const std::string session_b = initialize_session(11);
+    ASSERT_FALSE(session_a.empty());
+    ASSERT_FALSE(session_b.empty());
+    ASSERT_NE(session_a, session_b);
+
+    const auto call_slow = [&server](
+        const std::string& session_id,
+        const std::string& client_name
+    ) {
+        httplib::Client client("127.0.0.1", server.port());
+        const json request = {
+            {"jsonrpc", "2.0"},
+            {"id", 1},
+            {"method", "slow"},
+            {"params", json{{"client", client_name}}}
+        };
+        return client.Post(
+            "/jsonrpc",
+            {{"Mcp-Session-Id", session_id}},
+            request.dump(),
+            "application/json"
+        );
+    };
+
+    auto client_a_result = std::async(
+        std::launch::async,
+        call_slow,
+        session_a,
+        "a"
+    );
+    auto client_b_result = std::async(
+        std::launch::async,
+        call_slow,
+        session_b,
+        "b"
+    );
+
+    ASSERT_EQ(
+        handlers_started_result.wait_for(std::chrono::seconds(1)),
+        std::future_status::ready
+    );
+
+    // 取消请求使用另一条 HTTP 连接，但携带 Client A 的稳定 session ID。
+    httplib::Client cancellation_client("127.0.0.1", server.port());
+    const json cancellation = {
+        {"jsonrpc", "2.0"},
+        {"method", "notifications/cancelled"},
+        {"params", json{{"requestId", 1}, {"reason", "test"}}}
+    };
+    auto cancellation_response = cancellation_client.Post(
+        "/jsonrpc",
+        {{"Mcp-Session-Id", session_a}},
+        cancellation.dump(),
+        "application/json"
+    );
+    ASSERT_TRUE(cancellation_response);
+    EXPECT_EQ(cancellation_response->status, 200);
+
+    for (
+        int attempt = 0;
+        attempt < 100 && !client_a_cancelled.load();
+        ++attempt
+    ) {
+        std::this_thread::sleep_for(std::chrono::milliseconds(2));
+    }
+    EXPECT_TRUE(client_a_cancelled.load());
+    EXPECT_FALSE(client_b_cancelled.load());
+
+    release_guard.release();
+    ASSERT_TRUE(client_a_result.get());
+    ASSERT_TRUE(client_b_result.get());
 }
 
 TEST_F(HttpJsonRpcBatchTest, ReturnsServerBusyForOnlyTheFullLane) {

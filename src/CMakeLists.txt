@@ -41,6 +41,7 @@ target_include_directories(mcp_lib PUBLIC
 target_link_libraries(mcp_lib
     Threads::Threads
     CURL::libcurl
+    OpenSSL::Crypto
 )
 
 # Link JSON library (using vcpkg)

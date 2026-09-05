@@ -48,6 +48,7 @@ find_package(PkgConfig REQUIRED)
 
 # Check for libcurl (using vcpkg)
 find_package(CURL REQUIRED)
+find_package(OpenSSL REQUIRED)
 
 # Check for nlohmann/json (using vcpkg)
 find_package(nlohmann_json REQUIRED)
