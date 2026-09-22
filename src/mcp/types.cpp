@@ -17,10 +17,48 @@ bool IsSupportedProtocolVersion(std::string_view protocol_version) {
 }
 
 std::string NegotiateProtocolVersion(std::string_view requested_version) {
-    if (IsSupportedProtocolVersion(requested_version)) {
+    // initialize 只属于 2025-11-25 及更早的握手式协议。
+    if (
+        IsSupportedProtocolVersion(requested_version) &&
+        requested_version != kLatestProtocolVersion
+    ) {
         return std::string(requested_version);
     }
-    return kLatestProtocolVersion;
+    return kLatestLegacyProtocolVersion;
+}
+
+std::optional<std::string> GetRequestProtocolVersion(const json& params) {
+    if (!params.is_object() || !params.contains("_meta")) {
+        return std::nullopt;
+    }
+
+    const json& metadata = params["_meta"];
+    constexpr char kProtocolVersionKey[] =
+        "io.modelcontextprotocol/protocolVersion";
+    if (
+        !metadata.is_object() ||
+        !metadata.contains(kProtocolVersionKey) ||
+        !metadata[kProtocolVersionKey].is_string()
+    ) {
+        return std::nullopt;
+    }
+
+    return metadata[kProtocolVersionKey].get<std::string>();
+}
+
+bool IsModernProtocolRequest(const json& params) {
+    const auto protocol_version = GetRequestProtocolVersion(params);
+    return protocol_version.has_value() &&
+        *protocol_version == kLatestProtocolVersion;
+}
+
+json SupportedProtocolVersionsJson() {
+    json versions = json::array();
+    for (auto it = kSupportedProtocolVersions.rbegin();
+         it != kSupportedProtocolVersions.rend(); ++it) {
+        versions.push_back(*it);
+    }
+    return versions;
 }
 
 json ToolInputSchema::to_json() const {

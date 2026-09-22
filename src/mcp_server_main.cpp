@@ -438,9 +438,34 @@ void setup_mcp_server(McpServer& mcp) {
 JsonRpcDispatcher create_dispatcher(McpServer& mcp_server) {
     JsonRpcDispatcher dispatcher;
 
+    const auto protocol_result = [&mcp_server](
+        const json& params,
+        json result,
+        bool cacheable = false,
+        int ttl_ms = 0
+    ) {
+        if (!IsModernProtocolRequest(params)) {
+            return result;
+        }
+        return mcp_server.decorate_modern_result(
+            std::move(result),
+            cacheable,
+            ttl_ms,
+            "private"
+        );
+    };
+
     auto tool_circuit_breaker = std::make_shared<ToolCircuitBreaker>(
         MCP_CONFIG.GetToolCircuitFailureThreshold(),
         std::chrono::milliseconds(MCP_CONFIG.GetToolCircuitOpenMs())
+    );
+
+    // 2026-07-28 起使用无状态能力发现，不再依赖 initialize 握手。
+    dispatcher.registerHandler(
+        "server/discover",
+        [&mcp_server](const json& /*params*/) -> json {
+            return mcp_server.get_discover_result();
+        }
     );
 
     // initialize
@@ -473,18 +498,23 @@ JsonRpcDispatcher create_dispatcher(McpServer& mcp_server) {
     );
 
     // tools/list
-    dispatcher.registerHandler("tools/list", [&mcp_server](const json& /*params*/) -> json {
+    dispatcher.registerHandler("tools/list", [&mcp_server, protocol_result](const json& params) -> json {
         json tools_arr = json::array();
         for (const auto& tool : mcp_server.list_tools()) {
             tools_arr.push_back(tool.to_json());
         }
-        return {{"tools", tools_arr}};
+        return protocol_result(
+            params,
+            json{{"tools", tools_arr}},
+            true,
+            30000
+        );
     });
 
     // tools/call
     dispatcher.registerHandler(
         "tools/call",
-        [&mcp_server, tool_circuit_breaker](const json& params) -> json {
+        [&mcp_server, tool_circuit_breaker, protocol_result](const json& params) -> json {
         if (!params.is_object()) {
             throw std::invalid_argument(
                 "tools/call params must be an object"
@@ -513,7 +543,7 @@ JsonRpcDispatcher create_dispatcher(McpServer& mcp_server) {
                 .type = "text",
                 .text = "Tool temporarily unavailable"
             });
-            return unavailable.to_json();
+            return protocol_result(params, unavailable.to_json());
         }
 
         MCP_LOG_INFO("Calling tool: {}", name);
@@ -525,7 +555,7 @@ JsonRpcDispatcher create_dispatcher(McpServer& mcp_server) {
 
         // 客户端主动取消不表示工具依赖故障，不计入熔断。
         if (context != nullptr && context->is_cancelled()) {
-            return result.to_json();
+            return protocol_result(params, result.to_json());
         }
 
         if (
@@ -537,40 +567,71 @@ JsonRpcDispatcher create_dispatcher(McpServer& mcp_server) {
             tool_circuit_breaker->record_success(name);
         }
 
-        return result.to_json();
+        return protocol_result(params, result.to_json());
         }
     );
 
     // resources/list
-    dispatcher.registerHandler("resources/list", [&mcp_server](const json& /*params*/) -> json {
+    dispatcher.registerHandler("resources/list", [&mcp_server, protocol_result](const json& params) -> json {
         json resources_arr = json::array();
         for (const auto& resource : mcp_server.list_resources()) {
             resources_arr.push_back(resource.to_json());
         }
-        return {{"resources", resources_arr}};
+        return protocol_result(
+            params,
+            json{{"resources", resources_arr}},
+            true,
+            30000
+        );
     });
 
     // resources/read
-    dispatcher.registerHandler("resources/read", [&mcp_server](const json& params) -> json {
+    dispatcher.registerHandler("resources/read", [&mcp_server, protocol_result](const json& params) -> json {
         std::string uri = params.at("uri").get<std::string>();
+        if (!mcp_server.has_resource(uri)) {
+            throw std::invalid_argument("Resource not found: " + uri);
+        }
         MCP_LOG_INFO("Reading resource: {}", uri);
         auto content = mcp_server.read_resource(uri);
         json contents_arr = json::array();
         contents_arr.push_back(content.to_json());
-        return {{"contents", contents_arr}};
+        return protocol_result(
+            params,
+            json{{"contents", contents_arr}},
+            true,
+            1000
+        );
     });
 
+    // 当前项目未注册参数化资源，仍按协议返回可缓存的空模板列表。
+    dispatcher.registerHandler(
+        "resources/templates/list",
+        [&protocol_result](const json& params) -> json {
+            return protocol_result(
+                params,
+                json{{"resourceTemplates", json::array()}},
+                true,
+                30000
+            );
+        }
+    );
+
     // prompts/list
-    dispatcher.registerHandler("prompts/list", [&mcp_server](const json& /*params*/) -> json {
+    dispatcher.registerHandler("prompts/list", [&mcp_server, protocol_result](const json& params) -> json {
         json prompts_arr = json::array();
         for (const auto& prompt : mcp_server.list_prompts()) {
             prompts_arr.push_back(prompt.to_json());
         }
-        return {{"prompts", prompts_arr}};
+        return protocol_result(
+            params,
+            json{{"prompts", prompts_arr}},
+            true,
+            30000
+        );
     });
 
     // prompts/get
-    dispatcher.registerHandler("prompts/get", [&mcp_server](const json& params) -> json {
+    dispatcher.registerHandler("prompts/get", [&mcp_server, protocol_result](const json& params) -> json {
         std::string name = params.at("name").get<std::string>();
         json arguments = params.value("arguments", json::object());
         MCP_LOG_INFO("Getting prompt: {}", name);
@@ -579,7 +640,7 @@ JsonRpcDispatcher create_dispatcher(McpServer& mcp_server) {
         for (const auto& msg : messages) {
             messages_arr.push_back(msg.to_json());
         }
-        return {{"messages", messages_arr}};
+        return protocol_result(params, json{{"messages", messages_arr}});
     });
 
     return dispatcher;
@@ -949,7 +1010,9 @@ int main(int argc, char* argv[]) {
     }
 
     if (host.empty()) {
-        host = "0.0.0.0";
+        // MCP Streamable HTTP 的本地默认值仅监听回环地址，降低 DNS
+        // rebinding 和意外暴露到局域网的风险；远程部署可显式传 --host。
+        host = "127.0.0.1";
     }
     if (port == 0) {
         port = MCP_CONFIG.GetServerPort();

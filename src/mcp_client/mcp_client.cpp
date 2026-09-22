@@ -89,7 +89,11 @@ json McpClient::send_request(const std::string& method, const json& params) {
 }
 
 InitializeResult McpClient::initialize() {
-    json result = send_request("initialize", json::object());
+    json result = send_request("initialize", {
+        {"protocolVersion", kLatestLegacyProtocolVersion},
+        {"capabilities", json::object()},
+        {"clientInfo", {{"name", "mcp-client-sdk"}, {"version", "1.0.0"}}}
+    });
     return InitializeResult::from_json(result);
 }
 

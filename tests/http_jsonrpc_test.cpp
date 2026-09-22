@@ -3,6 +3,7 @@
 #include "jsonrpc_task.h"
 #include "jsonrpc_task_runtime.h"
 #include "logger.h"
+#include "types.h"
 
 #include <gtest/gtest.h>
 #include <httplib.h>
@@ -29,6 +30,34 @@ json make_request(int id, const std::string& method) {
         {"id", id},
         {"method", method}
     };
+}
+
+json modern_params(std::string version = kLatestProtocolVersion) {
+    return {
+        {"_meta", {
+            {"io.modelcontextprotocol/protocolVersion", std::move(version)},
+            {"io.modelcontextprotocol/clientInfo", {
+                {"name", "http-test"}, {"version", "1.0.0"}
+            }},
+            {"io.modelcontextprotocol/clientCapabilities", json::object()}
+        }}
+    };
+}
+
+httplib::Headers modern_headers(
+    const std::string& method,
+    const std::string& version = kLatestProtocolVersion,
+    const std::string& name = ""
+) {
+    httplib::Headers headers = {
+        {"Accept", "application/json, text/event-stream"},
+        {"MCP-Protocol-Version", version},
+        {"Mcp-Method", method}
+    };
+    if (!name.empty()) {
+        headers.emplace("Mcp-Name", name);
+    }
+    return headers;
 }
 
 class HttpBatchTestServer {
@@ -650,4 +679,176 @@ TEST_F(HttpJsonRpcBatchTest, CancelsOnlyTheTargetTaskAndKeepsOtherLanesRunning) 
     EXPECT_EQ(response_json[0]["error"]["code"], -32000);
     EXPECT_EQ(response_json[1]["id"], 2);
     EXPECT_FALSE(cancelled_tool_handler_called.load());
+}
+
+TEST_F(HttpJsonRpcBatchTest, ServesModernDiscoverWithoutSession) {
+    JsonRpcDispatcher dispatcher;
+    dispatcher.registerHandler("server/discover", [](const json&) {
+        return json{
+            {"resultType", "complete"},
+            {"supportedVersions", json::array({kLatestProtocolVersion})},
+            {"capabilities", json::object()}
+        };
+    });
+    auto runtime = std::make_shared<JsonRpcTaskRuntime>(
+        std::move(dispatcher), 8, 2
+    );
+    HttpBatchTestServer server(runtime);
+    server.start();
+
+    const json request = {
+        {"jsonrpc", "2.0"}, {"id", 1},
+        {"method", "server/discover"}, {"params", modern_params()}
+    };
+    httplib::Client client("127.0.0.1", server.port());
+    auto response = client.Post(
+        "/mcp", modern_headers("server/discover"),
+        request.dump(), "application/json"
+    );
+
+    ASSERT_TRUE(response);
+    ASSERT_EQ(response->status, 200);
+    EXPECT_FALSE(response->has_header("Mcp-Session-Id"));
+    const json body = json::parse(response->body);
+    EXPECT_EQ(body.at("result").at("resultType"), "complete");
+}
+
+TEST_F(HttpJsonRpcBatchTest, ValidatesModernHeadersAndVersion) {
+    JsonRpcDispatcher dispatcher;
+    dispatcher.registerHandler("server/discover", [](const json&) {
+        return json{{"resultType", "complete"}};
+    });
+    auto runtime = std::make_shared<JsonRpcTaskRuntime>(
+        std::move(dispatcher), 8, 2
+    );
+    HttpBatchTestServer server(runtime);
+    server.start();
+    httplib::Client client("127.0.0.1", server.port());
+
+    const json valid_request = {
+        {"jsonrpc", "2.0"}, {"id", 2},
+        {"method", "server/discover"}, {"params", modern_params()}
+    };
+    auto mismatch = client.Post(
+        "/mcp", modern_headers("tools/list"),
+        valid_request.dump(), "application/json"
+    );
+    ASSERT_TRUE(mismatch);
+    EXPECT_EQ(mismatch->status, 400);
+    EXPECT_EQ(json::parse(mismatch->body)["error"]["code"], -32020)
+        << mismatch->body;
+
+    const std::string unsupported = "2099-01-01";
+    json unsupported_request = valid_request;
+    unsupported_request["id"] = 3;
+    unsupported_request["params"] = modern_params(unsupported);
+    auto version_response = client.Post(
+        "/mcp", modern_headers("server/discover", unsupported),
+        unsupported_request.dump(), "application/json"
+    );
+    ASSERT_TRUE(version_response);
+    EXPECT_EQ(version_response->status, 400);
+    EXPECT_EQ(json::parse(version_response->body)["error"]["code"], -32022)
+        << version_response->body;
+
+    json missing_capability = valid_request;
+    missing_capability["id"] = 4;
+    missing_capability["params"]["_meta"].erase(
+        "io.modelcontextprotocol/clientCapabilities"
+    );
+    auto capability_response = client.Post(
+        "/mcp", modern_headers("server/discover"),
+        missing_capability.dump(), "application/json"
+    );
+    ASSERT_TRUE(capability_response);
+    EXPECT_EQ(capability_response->status, 400);
+    EXPECT_EQ(
+        json::parse(capability_response->body)["error"]["code"],
+        -32021
+    );
+
+    auto forbidden_headers = modern_headers("server/discover");
+    forbidden_headers.emplace("Origin", "http://localhost:80@evil.example");
+    auto forbidden = client.Post(
+        "/mcp", forbidden_headers, valid_request.dump(), "application/json"
+    );
+    ASSERT_TRUE(forbidden);
+    EXPECT_EQ(forbidden->status, 403);
+}
+
+TEST_F(HttpJsonRpcBatchTest, RejectsUnknownMethodBatchAndObsoleteVerbs) {
+    JsonRpcDispatcher dispatcher;
+    auto runtime = std::make_shared<JsonRpcTaskRuntime>(
+        std::move(dispatcher), 8, 2
+    );
+    HttpBatchTestServer server(runtime);
+    server.start();
+    httplib::Client client("127.0.0.1", server.port());
+
+    const json unknown_request = {
+        {"jsonrpc", "2.0"}, {"id", 4},
+        {"method", "unknown/method"}, {"params", modern_params()}
+    };
+    auto unknown = client.Post(
+        "/mcp", modern_headers("unknown/method"),
+        unknown_request.dump(), "application/json"
+    );
+    ASSERT_TRUE(unknown);
+    EXPECT_EQ(unknown->status, 404);
+    EXPECT_EQ(json::parse(unknown->body)["error"]["code"], -32601)
+        << unknown->body;
+
+    auto batch = client.Post(
+        "/mcp", modern_headers("server/discover"),
+        json::array({unknown_request}).dump(), "application/json"
+    );
+    ASSERT_TRUE(batch);
+    EXPECT_EQ(batch->status, 400);
+
+    auto get_response = client.Get("/mcp");
+    auto delete_response = client.Delete("/mcp");
+    ASSERT_TRUE(get_response);
+    ASSERT_TRUE(delete_response);
+    EXPECT_EQ(get_response->status, 405);
+    EXPECT_EQ(delete_response->status, 405);
+}
+
+TEST_F(HttpJsonRpcBatchTest, StreamsToolCallWithoutSseEventIds) {
+    JsonRpcDispatcher dispatcher;
+    dispatcher.registerHandler("tools/call", [](const json&) {
+        return json{
+            {"resultType", "complete"},
+            {"content", json::array({json{{"type", "text"}, {"text", "ok"}}})}
+        };
+    });
+    auto runtime = std::make_shared<JsonRpcTaskRuntime>(
+        std::move(dispatcher), 8, 2
+    );
+    HttpBatchTestServer server(runtime);
+    server.start();
+
+    json params = modern_params();
+    params["name"] = "echo";
+    params["arguments"] = json::object();
+    const json request = {
+        {"jsonrpc", "2.0"}, {"id", 5},
+        {"method", "tools/call"}, {"params", std::move(params)}
+    };
+    httplib::Client client("127.0.0.1", server.port());
+    auto response = client.Post(
+        "/mcp", modern_headers("tools/call", kLatestProtocolVersion, "echo"),
+        request.dump(), "application/json"
+    );
+
+    ASSERT_TRUE(response);
+    ASSERT_EQ(response->status, 200);
+    EXPECT_NE(
+        response->get_header_value("Content-Type").find("text/event-stream"),
+        std::string::npos
+    );
+    EXPECT_EQ(response->body.find("id:"), std::string::npos);
+    ASSERT_EQ(response->body.rfind("data: ", 0), 0u);
+    const json event = json::parse(response->body.substr(6));
+    EXPECT_EQ(event.at("result").at("resultType"), "complete");
+    EXPECT_FALSE(response->has_header("Mcp-Session-Id"));
 }

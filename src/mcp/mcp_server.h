@@ -38,7 +38,16 @@ public:
     // 获取初始化结果
     InitializeResult get_initialize_result(
         std::string_view requested_protocol_version =
-            kLatestProtocolVersion
+            kLatestLegacyProtocolVersion
+    ) const;
+
+    // 2026-07-28 无状态协议的能力发现与统一结果封装。
+    json get_discover_result() const;
+    json decorate_modern_result(
+        json result,
+        bool cacheable = false,
+        int ttl_ms = 0,
+        std::string cache_scope = "private"
     ) const;
 
     // 设置服务器能力

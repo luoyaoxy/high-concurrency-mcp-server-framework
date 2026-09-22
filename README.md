@@ -1,8 +1,17 @@
-# 高并发 MCP Server 框架
+# 并发 MCP Server 框架
 
-基于 C++17 构建的高性能、高并发 **Model Context Protocol (MCP)** 服务端框架。通过多通道任务隔离、熔断保护、SSE 实时推送以及灵活传输层支持，从容应对高负载工具调用场景。
+基于 C++17 构建的高性能并发 **Model Context Protocol（MCP）** 服务端框架。项目支持 MCP `2026-07-28` 的无状态 Streamable HTTP，同时保留 stdio 和旧版 HTTP JSON-RPC 兼容路径，可直接接入 Codex 等 MCP 客户端。
 
 ## 核心特性
+
+### MCP 2026-07-28 协议支持
+
+- **Streamable HTTP** — 提供统一的 `POST /mcp` 端点；普通请求返回 JSON，工具调用可通过当前请求专属的 SSE 流返回结果。
+- **无状态请求** — 新版请求在 `params._meta` 中携带协议版本、客户端信息和客户端能力，不依赖 `initialize` 或协议级 Session。
+- **能力发现** — 实现 `server/discover`，返回服务器身份、能力和支持的协议版本。
+- **请求元数据校验** — 校验 `MCP-Protocol-Version`、`Mcp-Method` 和按需提供的 `Mcp-Name`，并返回新版协议错误码。
+- **结果与缓存语义** — 新版结果包含 `resultType` 和服务器信息；列表及资源读取结果包含 `ttlMs`、`cacheScope`。
+- **双时代兼容** — 新版客户端使用 `/mcp`；原有 `/jsonrpc`、stdio `initialize` 和独立 SSE 服务继续为旧客户端及现有集成提供兼容。
 
 ### 并发调度
 
@@ -19,9 +28,10 @@
 
 ### 传输与流式推送
 
-- **HTTP JSON-RPC** — 标准 JSON-RPC 2.0 over HTTP，支持请求/响应模式。
-- **SSE（Server-Sent Events）** — 使用独立端口和专用工作线程池驱动实时事件流，支持断线重连后的事件回放。
-- **stdio 传输** — 完整的 stdio 传输支持，可直接接入 Claude Desktop 等本地 MCP 集成场景。
+- **MCP Streamable HTTP** — `POST /mcp` 支持 JSON 与请求级 SSE 响应；SSE 断开会取消对应任务。
+- **兼容 HTTP JSON-RPC** — `/jsonrpc` 保留旧版请求、批处理和 Session 行为。
+- **独立 SSE 服务** — 项目原有状态与工具事件流继续使用独立端口、专用线程池和事件回放。
+- **stdio 传输** — 可由 Codex、Claude Desktop 等本地 MCP 客户端直接拉起进程。
 
 ### 可观测性
 
@@ -42,14 +52,14 @@
 
 ### 客户端 SDK
 
-开箱即用的 C++ 客户端库，完整支持 MCP 协议：`initialize`、`tools/list`、`tools/call`、`resources/list`、`resources/read`、`prompts/list`、`prompts/get`。
+提供兼容旧版握手协议的 C++ 客户端库，支持 `initialize`、`tools/list`、`tools/call`、`resources/list`、`resources/read`、`prompts/list`、`prompts/get`。
 
 ## 架构概览
 
 ```
 ┌─────────────────────────────────────────────────────┐
 │                    传输层                             │
-│   HTTP JSON-RPC  │  SSE Server  │  stdio Transport  │
+│ Streamable HTTP  │ Legacy HTTP/SSE │ stdio Transport │
 ├─────────────────────────────────────────────────────┤
 │                   任务运行时                           │
 │  ┌──────────┐  ┌──────────┐  ┌──────────────────┐  │
@@ -112,14 +122,59 @@ cmake --build build
 
 ```bash
 # HTTP 模式（默认）
-./build/src/mcp_server --mode http --port 8089
+./build/src/mcp_server --mode http --host 127.0.0.1 --port 8089 \
+  --config ./config/server.json
 
-# stdio 模式（接入 Claude Desktop）
-./build/src/mcp_server --mode stdio
+# stdio 模式（接入 Codex、Claude Desktop）
+./build/src/mcp_server --mode stdio --config ./config/server.json
 
 # 同时启动两种模式
-./build/src/mcp_server --mode both --port 8089
+./build/src/mcp_server --mode both --host 127.0.0.1 --port 8089 \
+  --config ./config/server.json
 ```
+
+HTTP 模式默认仅监听 `127.0.0.1`，避免本地 MCP 服务意外暴露到局域网。远程部署时需显式指定 `--host`，并在反向代理或服务层配置认证。
+
+### 接入 Codex
+
+Codex 支持 stdio 和 Streamable HTTP 两种 MCP 连接方式。本地开发推荐使用 stdio，由 Codex 自动启动和管理服务进程：
+
+```bash
+codex mcp add mcp-conductor -- \
+  /absolute/path/to/mcp-conductor/build/src/mcp_server \
+  --mode stdio \
+  --config /absolute/path/to/mcp-conductor/config/server.json
+```
+
+也可以手动编辑 `~/.codex/config.toml` 或项目内的 `.codex/config.toml`：
+
+```toml
+[mcp_servers.mcp-conductor]
+command = "/absolute/path/to/mcp-conductor/build/src/mcp_server"
+args = [
+  "--mode", "stdio",
+  "--config", "/absolute/path/to/mcp-conductor/config/server.json"
+]
+cwd = "/absolute/path/to/mcp-conductor"
+```
+
+使用最新版 Streamable HTTP 时，先启动 HTTP 服务，再执行：
+
+```bash
+codex mcp add mcp-conductor-http \
+  --url http://127.0.0.1:8089/mcp
+```
+
+通过 `codex mcp list` 查看配置；进入 Codex TUI 后可使用 `/mcp` 查看连接状态。Codex CLI、IDE 扩展和 ChatGPT 桌面端会共享同一份 Codex MCP 配置。配置方式参考 [OpenAI 官方 MCP 文档](https://learn.chatgpt.com/docs/extend/mcp)。
+
+### 协议端点
+
+| 端点/传输 | 协议形态 | 用途 |
+|---|---|---|
+| `POST /mcp` | MCP `2026-07-28` Streamable HTTP | 新版无状态客户端、请求级 SSE |
+| `POST /jsonrpc` | 项目旧版 HTTP JSON-RPC 兼容接口 | 原有 HTTP 客户端、批处理与 Session |
+| stdio | 新旧 MCP 请求 | Codex 等本地进程集成 |
+| 独立 SSE 端口 | 项目扩展事件流 | 状态推送、工具调用事件和历史回放 |
 
 ### 配置说明
 
@@ -133,6 +188,7 @@ cmake --build build
     "sse_workers": 2,                       // SSE 工作线程数
     "worker_threads": 4,                    // Default 通道线程数
     "max_pending_tasks": 128,               // Default 通道队列容量
+    "request_timeout_ms": 30000,            // 请求总超时
     "tool_workers": 2,                      // Tool 通道线程数
     "tool_max_pending_tasks": 32,           // Tool 通道队列容量
     "tool_circuit_failure_threshold": 5,    // 连续失败 N 次触发熔断
@@ -142,10 +198,14 @@ cmake --build build
     "prompt_workers": 2,                    // Prompt 通道线程数
     "prompt_max_pending_tasks": 32,         // Prompt 通道队列容量
     "sse_max_clients": 16,                  // SSE 最大同时连接数
+    "sse_max_pending_events_per_client": 128,
     "sse_replay_buffer_events": 256         // SSE 事件回放缓冲区大小
   },
   "logging": {
+    "log_file_path": "../../logs/server.log",
     "log_level": "info",                    // 日志级别
+    "log_file_size": 52428800,
+    "log_file_count": 5,
     "log_console_output": true              // 是否输出到控制台
   }
 }
@@ -191,7 +251,7 @@ int main() {
 ### 运行测试
 
 ```bash
-cd build && ctest --output-on-failure
+ctest --test-dir build --output-on-failure
 ```
 
 ## 项目结构

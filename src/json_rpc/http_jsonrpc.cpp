@@ -7,18 +7,25 @@
 #include "jsonrpc_serialization.h"
 #include "logger.h"
 #include "config.h"
+#include "types.h"
 
 #include <httplib.h>
 #include <nlohmann/json.hpp>
+#include <openssl/evp.h>
 #include <openssl/rand.h>
 
 #include "jsonrpc_task.h"
 
 #include <array>
+#include <algorithm>
+#include <cctype>
 #include <chrono>
+#include <future>
 #include <mutex>
 #include <optional>
 #include <stdexcept>
+#include <string_view>
+#include <thread>
 #include <unordered_set>
 #include <vector>
 
@@ -26,6 +33,344 @@ namespace mcp {
 namespace {
 
 constexpr char kMcpSessionIdHeader[] = "Mcp-Session-Id";
+constexpr char kMcpProtocolVersionHeader[] = "MCP-Protocol-Version";
+constexpr char kMcpMethodHeader[] = "Mcp-Method";
+constexpr char kMcpNameHeader[] = "Mcp-Name";
+
+struct ModernHttpFailure {
+    int status = 400;
+    json body;
+};
+
+json ErrorResponse(
+    const json& id,
+    int code,
+    const std::string& message,
+    std::optional<json> data = std::nullopt
+) {
+    json error = {{"code", code}, {"message", message}};
+    if (data.has_value()) {
+        error["data"] = std::move(*data);
+    }
+    return {
+        {"jsonrpc", kJsonRpcVersion},
+        {"id", id},
+        {"error", std::move(error)}
+    };
+}
+
+std::string Lowercase(std::string value) {
+    std::transform(
+        value.begin(),
+        value.end(),
+        value.begin(),
+        [](unsigned char character) {
+            return static_cast<char>(std::tolower(character));
+        }
+    );
+    return value;
+}
+
+bool ContainsMediaType(
+    const std::string& header,
+    const std::string& media_type
+) {
+    return Lowercase(header).find(media_type) != std::string::npos;
+}
+
+bool HasLocalOriginHost(
+    const std::string& origin,
+    const std::string& scheme_and_host
+) {
+    if (origin.compare(0, scheme_and_host.size(), scheme_and_host) != 0) {
+        return false;
+    }
+    if (origin.size() == scheme_and_host.size()) {
+        return true;
+    }
+    if (origin[scheme_and_host.size()] != ':') {
+        return false;
+    }
+    const std::string_view port(
+        origin.data() + scheme_and_host.size() + 1,
+        origin.size() - scheme_and_host.size() - 1
+    );
+    if (port.empty() || port.size() > 5 ||
+        !std::all_of(port.begin(), port.end(), [](unsigned char character) {
+            return std::isdigit(character) != 0;
+        })) {
+        return false;
+    }
+    const unsigned long port_number = std::stoul(std::string(port));
+    return port_number <= 65535;
+}
+
+bool IsAllowedOrigin(const std::string& origin) {
+    if (origin.empty()) {
+        return true;
+    }
+    const std::string normalized = Lowercase(origin);
+    return HasLocalOriginHost(normalized, "http://127.0.0.1") ||
+        HasLocalOriginHost(normalized, "https://127.0.0.1") ||
+        HasLocalOriginHost(normalized, "http://localhost") ||
+        HasLocalOriginHost(normalized, "https://localhost") ||
+        HasLocalOriginHost(normalized, "http://[::1]") ||
+        HasLocalOriginHost(normalized, "https://[::1]");
+}
+
+std::optional<std::string> DecodeMcpHeaderValue(
+    const std::string& value
+) {
+    constexpr char kPrefix[] = "=?base64?";
+    constexpr char kSuffix[] = "?=";
+    if (
+        value.size() < sizeof(kPrefix) - 1 + sizeof(kSuffix) - 1 ||
+        value.compare(0, sizeof(kPrefix) - 1, kPrefix) != 0 ||
+        value.compare(
+            value.size() - (sizeof(kSuffix) - 1),
+            sizeof(kSuffix) - 1,
+            kSuffix
+        ) != 0
+    ) {
+        return value;
+    }
+
+    const std::string encoded = value.substr(
+        sizeof(kPrefix) - 1,
+        value.size() - (sizeof(kPrefix) - 1) - (sizeof(kSuffix) - 1)
+    );
+    if (encoded.empty() || encoded.size() % 4 != 0) {
+        return std::nullopt;
+    }
+
+    std::string decoded((encoded.size() / 4) * 3, '\0');
+    const int decoded_size = EVP_DecodeBlock(
+        reinterpret_cast<unsigned char*>(decoded.data()),
+        reinterpret_cast<const unsigned char*>(encoded.data()),
+        static_cast<int>(encoded.size())
+    );
+    if (decoded_size < 0) {
+        return std::nullopt;
+    }
+
+    std::size_t padding = 0;
+    if (!encoded.empty() && encoded.back() == '=') {
+        ++padding;
+    }
+    if (encoded.size() > 1 && encoded[encoded.size() - 2] == '=') {
+        ++padding;
+    }
+    decoded.resize(static_cast<std::size_t>(decoded_size) - padding);
+    return decoded;
+}
+
+std::optional<std::string> ExpectedMcpName(
+    const JsonRpcRequest& request
+) {
+    if (!request.params.has_value() || !request.params->is_object()) {
+        return std::nullopt;
+    }
+    const json& params = *request.params;
+    if (request.method == "resources/read") {
+        if (params.contains("uri") && params["uri"].is_string()) {
+            return params["uri"].get<std::string>();
+        }
+        return std::nullopt;
+    }
+    if (request.method == "tools/call" || request.method == "prompts/get") {
+        if (params.contains("name") && params["name"].is_string()) {
+            return params["name"].get<std::string>();
+        }
+    }
+    return std::nullopt;
+}
+
+bool RequiresMcpName(const std::string& method) {
+    return method == "tools/call" ||
+        method == "resources/read" ||
+        method == "prompts/get";
+}
+
+bool ValidateModernHttpRequest(
+    const httplib::Request& http_request,
+    JsonRpcRequest& request,
+    ModernHttpFailure& failure
+) {
+    if (!IsAllowedOrigin(http_request.get_header_value("Origin"))) {
+        failure.status = 403;
+        failure.body = ErrorResponse(
+            nullptr,
+            jsonrpc_errc::InvalidRequest,
+            "Forbidden Origin"
+        );
+        return false;
+    }
+
+    if (!ContainsMediaType(
+            http_request.get_header_value("Content-Type"),
+            "application/json"
+        )) {
+        failure.status = 415;
+        failure.body = ErrorResponse(
+            nullptr,
+            jsonrpc_errc::InvalidRequest,
+            "Content-Type must be application/json"
+        );
+        return false;
+    }
+
+    const std::string accept = http_request.get_header_value("Accept");
+    if (
+        !ContainsMediaType(accept, "application/json") ||
+        !ContainsMediaType(accept, "text/event-stream")
+    ) {
+        failure.status = 406;
+        failure.body = ErrorResponse(
+            nullptr,
+            jsonrpc_errc::InvalidRequest,
+            "Accept must include application/json and text/event-stream"
+        );
+        return false;
+    }
+
+    json body;
+    try {
+        body = json::parse(http_request.body);
+    } catch (const json::parse_error& error) {
+        failure.status = 400;
+        failure.body = ErrorResponse(
+            nullptr,
+            jsonrpc_errc::ParseError,
+            std::string("Parse error: ") + error.what()
+        );
+        return false;
+    }
+
+    if (!body.is_object()) {
+        failure.status = 400;
+        failure.body = ErrorResponse(
+            nullptr,
+            jsonrpc_errc::InvalidRequest,
+            "Streamable HTTP accepts one JSON-RPC message per POST"
+        );
+        return false;
+    }
+
+    const json response_id = body.contains("id") ? body["id"] : json(nullptr);
+    try {
+        request = body.get<JsonRpcRequest>();
+    } catch (const std::exception& error) {
+        failure.status = 400;
+        failure.body = ErrorResponse(
+            response_id,
+            jsonrpc_errc::InvalidRequest,
+            error.what()
+        );
+        return false;
+    }
+
+    if (!request.params.has_value() || !request.params->is_object()) {
+        failure.status = 400;
+        failure.body = ErrorResponse(
+            response_id,
+            jsonrpc_errc::InvalidParams,
+            "Modern MCP requests require object params"
+        );
+        return false;
+    }
+
+    const json& params = *request.params;
+    const auto body_version = GetRequestProtocolVersion(params);
+    const std::string header_version =
+        http_request.get_header_value(kMcpProtocolVersionHeader);
+    if (!body_version.has_value() || header_version.empty() ||
+        header_version != *body_version) {
+        failure.status = 400;
+        failure.body = ErrorResponse(
+            response_id,
+            jsonrpc_errc::HeaderMismatch,
+            "Header mismatch: MCP-Protocol-Version must match params._meta"
+        );
+        return false;
+    }
+
+    if (*body_version != kLatestProtocolVersion) {
+        failure.status = 400;
+        failure.body = ErrorResponse(
+            response_id,
+            jsonrpc_errc::UnsupportedProtocolVersion,
+            "Unsupported protocol version",
+            json{
+                {"supported", SupportedProtocolVersionsJson()},
+                {"requested", *body_version}
+            }
+        );
+        return false;
+    }
+
+    const std::string header_method =
+        http_request.get_header_value(kMcpMethodHeader);
+    if (header_method.empty() || header_method != request.method) {
+        failure.status = 400;
+        failure.body = ErrorResponse(
+            response_id,
+            jsonrpc_errc::HeaderMismatch,
+            "Header mismatch: Mcp-Method must match the JSON-RPC method"
+        );
+        return false;
+    }
+
+    if (RequiresMcpName(request.method)) {
+        const auto expected_name = ExpectedMcpName(request);
+        const auto header_name = DecodeMcpHeaderValue(
+            http_request.get_header_value(kMcpNameHeader)
+        );
+        if (!expected_name.has_value() || !header_name.has_value() ||
+            *header_name != *expected_name) {
+            failure.status = 400;
+            failure.body = ErrorResponse(
+                response_id,
+                jsonrpc_errc::HeaderMismatch,
+                "Header mismatch: Mcp-Name must match request params"
+            );
+            return false;
+        }
+    }
+
+    const json& metadata = params.at("_meta");
+    constexpr char kCapabilitiesKey[] =
+        "io.modelcontextprotocol/clientCapabilities";
+    if (!metadata.contains(kCapabilitiesKey) ||
+        !metadata[kCapabilitiesKey].is_object()) {
+        failure.status = 400;
+        failure.body = ErrorResponse(
+            response_id,
+            jsonrpc_errc::MissingRequiredClientCapability,
+            "params._meta must include clientCapabilities"
+        );
+        return false;
+    }
+
+    return true;
+}
+
+int ModernHttpStatus(const JsonRpcResponse& response) {
+    if (!response.error.has_value()) {
+        return 200;
+    }
+    if (response.error->code == jsonrpc_errc::MethodNotFound) {
+        return 404;
+    }
+    if (
+        response.error->code == jsonrpc_errc::UnsupportedProtocolVersion ||
+        response.error->code == jsonrpc_errc::HeaderMismatch ||
+        response.error->code ==
+            jsonrpc_errc::MissingRequiredClientCapability
+    ) {
+        return 400;
+    }
+    return 200;
+}
 
 bool IsCancellationNotification(const JsonRpcRequest& request) {
     return !request.id.has_value() &&
@@ -126,6 +471,10 @@ public:
 
         // 设置错误处理
         server.set_error_handler([](const httplib::Request& /*req*/, httplib::Response& res) {
+            // 路由已经生成的协议错误（例如 MCP HeaderMismatch）必须原样保留。
+            if (!res.body.empty()) {
+                return;
+            }
             json error_response = {
                 {"jsonrpc", kJsonRpcVersion},
                 {"error", {
@@ -148,7 +497,7 @@ HttpJsonRpcServer::HttpJsonRpcServer(
 )
     : HttpJsonRpcServer(
         std::move(runtime),
-        "0.0.0.0",
+        "127.0.0.1",
         MCP_CONFIG.GetServerPort()
     ) {
     MCP_LOG_INFO("HTTP JSON-RPC server initialized from config");
@@ -169,6 +518,182 @@ HttpJsonRpcServer::HttpJsonRpcServer(
     }
 
     MCP_LOG_INFO("HTTP JSON-RPC server created on {}:{}", host_, port_);
+
+    // MCP 2026-07-28 Streamable HTTP：无 Session、单一 POST 端点。
+    impl_->server.Post("/mcp", [this](const httplib::Request& req, httplib::Response& res) {
+        runtime_->record_http_request();
+
+        const std::string origin = req.get_header_value("Origin");
+        if (!origin.empty() && IsAllowedOrigin(origin)) {
+            res.set_header("Access-Control-Allow-Origin", origin);
+            res.set_header("Vary", "Origin");
+        }
+
+        JsonRpcRequest request;
+        ModernHttpFailure failure;
+        if (!ValidateModernHttpRequest(req, request, failure)) {
+            res.status = failure.status;
+            res.set_content(failure.body.dump(), "application/json");
+            return;
+        }
+
+        const std::string client_id =
+            "http:modern:" + GenerateSessionId();
+        JsonRpcTask task = make_jsonrpc_task(
+            request,
+            client_id,
+            std::chrono::milliseconds(MCP_CONFIG.GetRequestTimeoutMs())
+        );
+        TaskSubmission submission = runtime_->submit(task);
+
+        // HTTP notification 被接收入队后立即确认；202 响应没有消息体。
+        if (task.is_notification()) {
+            if (submission.status == TaskSubmitStatus::Accepted) {
+                res.status = 202;
+                return;
+            }
+
+            JsonRpcTaskResult rejected = submission.result.get();
+            res.status = 503;
+            if (rejected.has_value()) {
+                res.set_content(json(*rejected).dump(), "application/json");
+            }
+            return;
+        }
+
+        // tools/call 使用请求专属 SSE 响应。这里只发送最终响应；未来可在
+        // 同一流中加入与该请求相关的 notifications/progress。
+        if (request.method == "tools/call") {
+            struct StreamState {
+                JsonRpcTask task;
+                std::future<JsonRpcTaskResult> result;
+            };
+
+            auto state = std::make_shared<StreamState>();
+            state->task = task;
+            state->result = std::move(submission.result);
+
+            res.status = 200;
+            res.set_header("Cache-Control", "no-cache");
+            res.set_header("X-Accel-Buffering", "no");
+            res.set_chunked_content_provider(
+                "text/event-stream",
+                [state](std::size_t /*offset*/, httplib::DataSink& sink) {
+                    constexpr auto kPollInterval =
+                        std::chrono::milliseconds(10);
+                    JsonRpcTaskResult result;
+
+                    while (
+                        state->result.wait_for(kPollInterval) !=
+                        std::future_status::ready
+                    ) {
+                        if (!sink.is_writable()) {
+                            state->task.cancellation.cancel();
+                            return false;
+                        }
+
+                        if (
+                            state->task.deadline.has_value() &&
+                            JsonRpcTask::Clock::now() >=
+                                *state->task.deadline
+                        ) {
+                            state->task.cancellation.cancel();
+                            JsonRpcResponse timeout;
+                            timeout.id = state->task.request_id.value();
+                            timeout.error = JsonRpcError{
+                                -32001,
+                                "Request timed out while streaming response",
+                                std::nullopt
+                            };
+                            result = std::move(timeout);
+                            break;
+                        }
+                    }
+
+                    if (!result.has_value()) {
+                        result = state->result.get();
+                    }
+                    if (!result.has_value()) {
+                        sink.done();
+                        return true;
+                    }
+
+                    const std::string payload =
+                        "data: " + json(*result).dump() + "\n\n";
+                    if (!sink.write(payload.data(), payload.size())) {
+                        state->task.cancellation.cancel();
+                        return false;
+                    }
+                    sink.done();
+                    return true;
+                },
+                [state](bool success) {
+                    if (!success) {
+                        state->task.cancellation.cancel();
+                    }
+                }
+            );
+            return;
+        }
+
+        JsonRpcTaskResult result =
+            runtime_->wait_for_result(task, submission.result);
+        if (!result.has_value()) {
+            res.status = 202;
+            return;
+        }
+
+        res.status = ModernHttpStatus(*result);
+        res.set_content(json(*result).dump(), "application/json");
+    });
+
+    impl_->server.Options("/mcp", [](const httplib::Request& req, httplib::Response& res) {
+        const std::string origin = req.get_header_value("Origin");
+        if (!IsAllowedOrigin(origin)) {
+            res.status = 403;
+            return;
+        }
+        if (!origin.empty()) {
+            res.set_header("Access-Control-Allow-Origin", origin);
+            res.set_header("Vary", "Origin");
+        }
+        res.set_header("Access-Control-Allow-Methods", "POST, OPTIONS");
+        res.set_header(
+            "Access-Control-Allow-Headers",
+            "Content-Type, Accept, MCP-Protocol-Version, Mcp-Method, Mcp-Name"
+        );
+        res.status = 204;
+    });
+
+    const auto reject_obsolete_mcp_method = [](
+        const httplib::Request& req,
+        httplib::Response& res
+    ) {
+        if (!IsAllowedOrigin(req.get_header_value("Origin"))) {
+            res.status = 403;
+            res.set_content(
+                ErrorResponse(
+                    nullptr,
+                    jsonrpc_errc::InvalidRequest,
+                    "Forbidden Origin"
+                ).dump(),
+                "application/json"
+            );
+            return;
+        }
+        res.status = 405;
+        res.set_header("Allow", "POST, OPTIONS");
+        res.set_content(
+            ErrorResponse(
+                nullptr,
+                jsonrpc_errc::InvalidRequest,
+                "MCP 2026 Streamable HTTP endpoint only accepts POST"
+            ).dump(),
+            "application/json"
+        );
+    };
+    impl_->server.Get("/mcp", reject_obsolete_mcp_method);
+    impl_->server.Delete("/mcp", reject_obsolete_mcp_method);
 
     // 注册 POST /jsonrpc 端点
     impl_->server.Post("/jsonrpc", [this](const httplib::Request& req, httplib::Response& res) {
@@ -262,6 +787,7 @@ HttpJsonRpcServer::HttpJsonRpcServer(
             {"service", "MCP HTTP JSON-RPC Server"},
             {"version", "1.0.0"},
             {"endpoints", {
+                {{"path", "/mcp"}, {"method", "POST"}, {"description", "MCP 2026 Streamable HTTP endpoint"}},
                 {{"path", "/jsonrpc"}, {"method", "POST"}, {"description", "JSON-RPC 2.0 endpoint"}},
                 {{"path", "/health"}, {"method", "GET"}, {"description", "Health check"}},
                 {{"path", "/"}, {"method", "GET"}, {"description", "Server information"}}

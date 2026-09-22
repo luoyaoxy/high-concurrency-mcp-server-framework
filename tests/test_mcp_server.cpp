@@ -42,7 +42,7 @@ protected:
 TEST_F(McpServerTest, Initialize) {
     auto result = server->get_initialize_result();
 
-    EXPECT_EQ(result.protocol_version, LATEST_PROTOCOL_VERSION);
+    EXPECT_EQ(result.protocol_version, kLatestLegacyProtocolVersion);
     EXPECT_EQ(result.server_info.name, "test-server");
     EXPECT_EQ(result.server_info.version, "1.0.0");
 }
@@ -50,13 +50,47 @@ TEST_F(McpServerTest, Initialize) {
 TEST_F(McpServerTest, NegotiatesEverySupportedProtocolVersion) {
     for (std::string_view version : kSupportedProtocolVersions) {
         const auto result = server->get_initialize_result(version);
-        EXPECT_EQ(result.protocol_version, version);
+        const std::string_view expected = version == kLatestProtocolVersion
+            ? std::string_view{kLatestLegacyProtocolVersion}
+            : version;
+        EXPECT_EQ(result.protocol_version, expected);
     }
 }
 
 TEST_F(McpServerTest, UnsupportedProtocolVersionUsesLatestSupportedVersion) {
     const auto result = server->get_initialize_result("2099-01-01");
-    EXPECT_EQ(result.protocol_version, kLatestProtocolVersion);
+    EXPECT_EQ(result.protocol_version, kLatestLegacyProtocolVersion);
+}
+
+TEST_F(McpServerTest, DiscoversModernProtocolAndServerIdentity) {
+    const json result = server->get_discover_result();
+
+    EXPECT_EQ(result.at("resultType"), "complete");
+    ASSERT_TRUE(result.at("supportedVersions").is_array());
+    EXPECT_EQ(result.at("supportedVersions").front(), kLatestProtocolVersion);
+    EXPECT_EQ(
+        result.at("_meta").at("io.modelcontextprotocol/serverInfo").at("name"),
+        "test-server"
+    );
+    EXPECT_EQ(result.at("ttlMs"), 3600000);
+    EXPECT_EQ(result.at("cacheScope"), "public");
+}
+
+TEST_F(McpServerTest, DecoratesModernCacheableResult) {
+    const json result = server->decorate_modern_result(
+        json{{"tools", json::array()}},
+        true,
+        30000,
+        "private"
+    );
+
+    EXPECT_EQ(result.at("resultType"), "complete");
+    EXPECT_EQ(result.at("ttlMs"), 30000);
+    EXPECT_EQ(result.at("cacheScope"), "private");
+    EXPECT_EQ(
+        result.at("_meta").at("io.modelcontextprotocol/serverInfo").at("version"),
+        "1.0.0"
+    );
 }
 
 // ===== Tools 测试 =====
@@ -98,6 +132,8 @@ TEST_F(McpServerTest, ListTools) {
 
     auto tools = server->list_tools();
     EXPECT_EQ(tools.size(), 2);
+    EXPECT_EQ(tools[0].name, "tool1");
+    EXPECT_EQ(tools[1].name, "tool2");
 }
 
 TEST_F(McpServerTest, CallTool) {
@@ -168,6 +204,8 @@ TEST_F(McpServerTest, ListResources) {
 
     auto resources = server->list_resources();
     EXPECT_EQ(resources.size(), 2);
+    EXPECT_EQ(resources[0].uri, "test://res1");
+    EXPECT_EQ(resources[1].uri, "test://res2");
 }
 
 TEST_F(McpServerTest, ReadResource) {
@@ -228,6 +266,8 @@ TEST_F(McpServerTest, ListPrompts) {
 
     auto prompts = server->list_prompts();
     EXPECT_EQ(prompts.size(), 2);
+    EXPECT_EQ(prompts[0].name, "prompt1");
+    EXPECT_EQ(prompts[1].name, "prompt2");
 }
 
 TEST_F(McpServerTest, GetPrompt) {

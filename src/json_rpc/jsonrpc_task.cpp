@@ -1,5 +1,6 @@
 #include "jsonrpc_task.h"
 #include "logger.h"
+#include "types.h"
 
 #include <atomic>
 #include <chrono>
@@ -69,12 +70,24 @@ JsonRpcResponse make_response(
 }
 
 // 统一构造 JSON-RPC 错误对象。
-JsonRpcError make_error(int code, std::string message) {
+JsonRpcError make_error(
+    int code,
+    std::string message,
+    std::optional<json> data = std::nullopt
+) {
     return JsonRpcError{
         code,
         std::move(message),
-        std::nullopt
+        std::move(data)
     };
+}
+
+bool is_removed_modern_method(const std::string& method) {
+    return method == "initialize" ||
+        method == "notifications/initialized" ||
+        method == "ping" ||
+        method == "logging/setLevel" ||
+        method == "notifications/roots/list_changed";
 }
 
 } // namespace
@@ -185,6 +198,93 @@ std::optional<JsonRpcResponse> execute_jsonrpc_task(
                     "Invalid Request: jsonrpc must be 2.0"
                 )
             );
+        }
+
+        // 2026-07-28 将版本和客户端能力移动到每个请求的 _meta。
+        // server/discover 也必须使用这套元数据；其失败可被旧客户端用作
+        // 回退到 initialize 的探测信号。
+        const auto request_protocol_version =
+            GetRequestProtocolVersion(task.params);
+        const bool modern_request = request_protocol_version.has_value() ||
+            task.method == "server/discover";
+
+        if (modern_request) {
+            if (!request_protocol_version.has_value()) {
+                if (task.is_notification()) {
+                    return std::nullopt;
+                }
+                return make_response(
+                    task,
+                    std::nullopt,
+                    make_error(
+                        jsonrpc_errc::InvalidParams,
+                        "Modern MCP requests require params._meta protocolVersion"
+                    )
+                );
+            }
+
+            if (*request_protocol_version != kLatestProtocolVersion) {
+                if (task.is_notification()) {
+                    return std::nullopt;
+                }
+                return make_response(
+                    task,
+                    std::nullopt,
+                    make_error(
+                        jsonrpc_errc::UnsupportedProtocolVersion,
+                        "Unsupported protocol version",
+                        json{
+                            {"supported", SupportedProtocolVersionsJson()},
+                            {"requested", *request_protocol_version}
+                        }
+                    )
+                );
+            }
+
+            const json& metadata = task.params.at("_meta");
+            constexpr char kClientCapabilitiesKey[] =
+                "io.modelcontextprotocol/clientCapabilities";
+            if (
+                !metadata.contains(kClientCapabilitiesKey) ||
+                !metadata[kClientCapabilitiesKey].is_object()
+            ) {
+                if (task.is_notification()) {
+                    return std::nullopt;
+                }
+                return make_response(
+                    task,
+                    std::nullopt,
+                    make_error(
+                        jsonrpc_errc::MissingRequiredClientCapability,
+                        "Modern MCP requests require clientCapabilities"
+                    )
+                );
+            }
+
+            if (
+                task.request_id.has_value() &&
+                task.request_id->is_null()
+            ) {
+                return make_response(
+                    task,
+                    std::nullopt,
+                    make_error(
+                        jsonrpc_errc::InvalidRequest,
+                        "Modern MCP request id must not be null"
+                    )
+                );
+            }
+
+            if (is_removed_modern_method(task.method)) {
+                return make_response(
+                    task,
+                    std::nullopt,
+                    make_error(
+                        jsonrpc_errc::MethodNotFound,
+                        "Method not found: " + task.method
+                    )
+                );
+            }
         }
 
         // 第二步：验证 method 是否存在。
