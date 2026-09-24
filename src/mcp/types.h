@@ -20,13 +20,15 @@ namespace mcp {
 using json = nlohmann::json;
 
 // MCP 协议版本。按从旧到新排列，以便保留原客户端兼容性。
-inline constexpr std::array<std::string_view, 4> kSupportedProtocolVersions = {
+inline constexpr std::array<std::string_view, 5> kSupportedProtocolVersions = {
     "2024-11-05",
     "2025-03-26",
     "2025-06-18",
     "2025-11-25",
+    "2026-07-28",
 };
-inline constexpr char kLatestProtocolVersion[] = "2025-11-25";
+inline constexpr char kLatestProtocolVersion[] = "2026-07-28";
+inline constexpr char kLatestLegacyProtocolVersion[] = "2025-11-25";
 inline constexpr char kDefaultNegotiatedVersion[] = "2024-11-05";
 
 // 保留旧常量名，避免破坏项目已有使用方。
@@ -36,6 +38,11 @@ inline constexpr const char* DEFAULT_NEGOTIATED_VERSION =
 
 bool IsSupportedProtocolVersion(std::string_view protocol_version);
 std::string NegotiateProtocolVersion(std::string_view requested_version);
+
+// 2026-07-28 起协议版本和客户端能力改为随每个请求携带。
+std::optional<std::string> GetRequestProtocolVersion(const json& params);
+bool IsModernProtocolRequest(const json& params);
+json SupportedProtocolVersionsJson();
 
 // 进度令牌类型
 using ProgressToken = std::variant<std::string, int64_t>;

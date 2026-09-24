@@ -86,6 +86,43 @@ InitializeResult McpServer::get_initialize_result(
     return result;
 }
 
+json McpServer::decorate_modern_result(
+    json result,
+    bool cacheable,
+    int ttl_ms,
+    std::string cache_scope
+) const {
+    if (!result.is_object()) {
+        throw std::invalid_argument("MCP result must be an object");
+    }
+
+    result["resultType"] = "complete";
+    result["_meta"]["io.modelcontextprotocol/serverInfo"] =
+        server_info_.to_json();
+
+    if (cacheable) {
+        result["ttlMs"] = std::max(ttl_ms, 0);
+        result["cacheScope"] = std::move(cache_scope);
+    }
+
+    return result;
+}
+
+json McpServer::get_discover_result() const {
+    json result = {
+        {"supportedVersions", SupportedProtocolVersionsJson()},
+        {"capabilities", capabilities_.to_json()},
+        {"instructions",
+         "High-concurrency MCP server with isolated tool, resource, and prompt lanes"}
+    };
+    return decorate_modern_result(
+        std::move(result),
+        true,
+        3600000,
+        "public"
+    );
+}
+
 void McpServer::set_capabilities(const ServerCapabilities& capabilities) {
     capabilities_ = capabilities;
 }
@@ -112,7 +149,23 @@ std::vector<Tool> McpServer::list_tools() const {
         result.push_back(tool);
     }
 
+    std::sort(result.begin(), result.end(), [](const Tool& left, const Tool& right) {
+        return left.name < right.name;
+    });
+
     return result;
+}
+
+std::optional<ToolInputSchema> McpServer::find_tool_input_schema(
+    const std::string& name
+) const {
+    std::shared_lock<std::shared_mutex> lock(tools_mutex_);
+
+    const auto tool = tools_.find(name);
+    if (tool == tools_.end()) {
+        return std::nullopt;
+    }
+    return tool->second.input_schema;
 }
 
 ToolResult McpServer::call_tool(
@@ -353,6 +406,14 @@ std::vector<Resource> McpServer::list_resources() const {
         result.push_back(resource);
     }
 
+    std::sort(
+        result.begin(),
+        result.end(),
+        [](const Resource& left, const Resource& right) {
+            return left.uri < right.uri;
+        }
+    );
+
     return result;
 }
 
@@ -404,6 +465,14 @@ std::vector<Prompt> McpServer::list_prompts() const {
     for (const auto& [name, prompt] : prompts_) {
         result.push_back(prompt);
     }
+
+    std::sort(
+        result.begin(),
+        result.end(),
+        [](const Prompt& left, const Prompt& right) {
+            return left.name < right.name;
+        }
+    );
 
     return result;
 }

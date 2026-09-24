@@ -38,7 +38,16 @@ public:
     // 获取初始化结果
     InitializeResult get_initialize_result(
         std::string_view requested_protocol_version =
-            kLatestProtocolVersion
+            kLatestLegacyProtocolVersion
+    ) const;
+
+    // 2026-07-28 无状态协议的能力发现与统一结果封装。
+    json get_discover_result() const;
+    json decorate_modern_result(
+        json result,
+        bool cacheable = false,
+        int ttl_ms = 0,
+        std::string cache_scope = "private"
     ) const;
 
     // 设置服务器能力
@@ -49,6 +58,11 @@ public:
 
     // 列出所有工具
     std::vector<Tool> list_tools() const;
+
+    // 查询工具输入 Schema；返回副本，避免调用方持有注册表锁。
+    std::optional<ToolInputSchema> find_tool_input_schema(
+        const std::string& name
+    ) const;
 
     // 调用工具
     ToolResult call_tool(const std::string& name, const json& arguments);
