@@ -36,6 +36,7 @@ constexpr char kMcpSessionIdHeader[] = "Mcp-Session-Id";
 constexpr char kMcpProtocolVersionHeader[] = "MCP-Protocol-Version";
 constexpr char kMcpMethodHeader[] = "Mcp-Method";
 constexpr char kMcpNameHeader[] = "Mcp-Name";
+constexpr char kMcpParamHeaderPrefix[] = "Mcp-Param-";
 
 struct ModernHttpFailure {
     int status = 400;
@@ -76,6 +77,51 @@ bool ContainsMediaType(
     const std::string& media_type
 ) {
     return Lowercase(header).find(media_type) != std::string::npos;
+}
+
+std::string TrimHttpToken(std::string value) {
+    const auto first = value.find_first_not_of(" \t");
+    if (first == std::string::npos) {
+        return {};
+    }
+    const auto last = value.find_last_not_of(" \t");
+    return value.substr(first, last - first + 1);
+}
+
+bool IsAllowedModernRequestHeader(const std::string& header_name) {
+    static const std::unordered_set<std::string> allowed = {
+        "accept",
+        "content-type",
+        "mcp-protocol-version",
+        "mcp-method",
+        "mcp-name"
+    };
+    const std::string normalized = Lowercase(TrimHttpToken(header_name));
+    const std::string parameter_prefix = Lowercase(kMcpParamHeaderPrefix);
+    return allowed.count(normalized) != 0 ||
+        (normalized.size() > parameter_prefix.size() &&
+         normalized.compare(0, parameter_prefix.size(), parameter_prefix) == 0);
+}
+
+bool ValidateCorsRequestHeaders(const std::string& requested_headers) {
+    std::size_t start = 0;
+    while (start <= requested_headers.size()) {
+        const std::size_t comma = requested_headers.find(',', start);
+        const std::string header = requested_headers.substr(
+            start,
+            comma == std::string::npos
+                ? std::string::npos
+                : comma - start
+        );
+        if (!IsAllowedModernRequestHeader(header)) {
+            return false;
+        }
+        if (comma == std::string::npos) {
+            break;
+        }
+        start = comma + 1;
+    }
+    return true;
 }
 
 bool HasLocalOriginHost(
@@ -191,9 +237,159 @@ bool RequiresMcpName(const std::string& method) {
         method == "prompts/get";
 }
 
+std::string ExpectedMcpParamValue(const json& value) {
+    if (value.is_string()) {
+        return value.get<std::string>();
+    }
+    return value.dump();
+}
+
+bool ValidateToolParamHeaders(
+    const httplib::Request& http_request,
+    const JsonRpcRequest& request,
+    const HttpJsonRpcServer::ToolSchemaResolver& tool_schema_resolver,
+    ModernHttpFailure& failure
+) {
+    if (request.method != "tools/call") {
+        return true;
+    }
+
+    const json& params = *request.params;
+    if (
+        params.contains("arguments") &&
+        !params["arguments"].is_object()
+    ) {
+        failure.status = 400;
+        failure.body = ErrorResponse(
+            request.id.value_or(nullptr),
+            jsonrpc_errc::InvalidParams,
+            "tools/call arguments must be an object"
+        );
+        return false;
+    }
+
+    if (!tool_schema_resolver) {
+        return true;
+    }
+
+    const auto tool_name = ExpectedMcpName(request);
+    if (!tool_name.has_value()) {
+        return true;
+    }
+    const auto schema = tool_schema_resolver(*tool_name);
+    if (!schema.has_value()) {
+        // 未知工具交给业务处理，避免把 Tool not found 错报为 HeaderMismatch。
+        return true;
+    }
+
+    const json arguments = params.value("arguments", json::object());
+    const json& properties = schema->properties;
+    if (!properties.is_object()) {
+        failure.status = 500;
+        failure.body = ErrorResponse(
+            request.id.value_or(nullptr),
+            jsonrpc_errc::InternalError,
+            "Registered tool input schema properties must be an object"
+        );
+        return false;
+    }
+
+    std::unordered_set<std::string> allowed_headers;
+
+    for (const std::string& parameter_name : schema->required) {
+        if (!properties.contains(parameter_name)) {
+            failure.status = 500;
+            failure.body = ErrorResponse(
+                request.id.value_or(nullptr),
+                jsonrpc_errc::InternalError,
+                "Registered tool schema requires an undeclared property: " +
+                    parameter_name
+            );
+            return false;
+        }
+        if (!arguments.contains(parameter_name)) {
+            failure.status = 400;
+            failure.body = ErrorResponse(
+                request.id.value_or(nullptr),
+                jsonrpc_errc::InvalidParams,
+                "Missing required tool argument: " + parameter_name
+            );
+            return false;
+        }
+    }
+
+    for (const auto& [parameter_name, declaration] : properties.items()) {
+        (void)declaration;
+        const std::string header_name =
+            std::string(kMcpParamHeaderPrefix) + parameter_name;
+        allowed_headers.insert(Lowercase(header_name));
+
+        const bool has_argument = arguments.contains(parameter_name);
+        const bool has_header = http_request.has_header(header_name);
+
+        if (has_argument != has_header) {
+            failure.status = 400;
+            failure.body = ErrorResponse(
+                request.id.value_or(nullptr),
+                jsonrpc_errc::HeaderMismatch,
+                "Header mismatch: " + header_name +
+                    " must match the tool argument"
+            );
+            return false;
+        }
+
+        if (!has_argument) {
+            continue;
+        }
+
+        const auto header_value = DecodeMcpHeaderValue(
+            http_request.get_header_value(header_name)
+        );
+        if (
+            !header_value.has_value() ||
+            *header_value != ExpectedMcpParamValue(arguments[parameter_name])
+        ) {
+            failure.status = 400;
+            failure.body = ErrorResponse(
+                request.id.value_or(nullptr),
+                jsonrpc_errc::HeaderMismatch,
+                "Header mismatch: " + header_name +
+                    " must match the tool argument"
+            );
+            return false;
+        }
+    }
+
+    const std::string lowercase_prefix = Lowercase(kMcpParamHeaderPrefix);
+    for (const auto& [header_name, header_value] : http_request.headers) {
+        (void)header_value;
+        const std::string normalized_name = Lowercase(header_name);
+        if (
+            normalized_name.compare(
+                0,
+                lowercase_prefix.size(),
+                lowercase_prefix
+            ) == 0 &&
+            allowed_headers.count(normalized_name) == 0
+        ) {
+            failure.status = 400;
+            failure.body = ErrorResponse(
+                request.id.value_or(nullptr),
+                jsonrpc_errc::HeaderMismatch,
+                "Header mismatch: undeclared tool parameter header " +
+                    header_name
+            );
+            return false;
+        }
+    }
+
+    return true;
+}
+
 bool ValidateModernHttpRequest(
     const httplib::Request& http_request,
     JsonRpcRequest& request,
+    const HttpJsonRpcServer::ToolSchemaResolver& tool_schema_resolver,
     ModernHttpFailure& failure
 ) {
     if (!IsAllowedOrigin(http_request.get_header_value("Origin"))) {
@@ -337,6 +533,15 @@ bool ValidateModernHttpRequest(
         }
     }
 
+    if (!ValidateToolParamHeaders(
+            http_request,
+            request,
+            tool_schema_resolver,
+            failure
+        )) {
+        return false;
+    }
+
     const json& metadata = params.at("_meta");
     constexpr char kCapabilitiesKey[] =
         "io.modelcontextprotocol/clientCapabilities";
@@ -345,8 +550,8 @@ bool ValidateModernHttpRequest(
         failure.status = 400;
         failure.body = ErrorResponse(
             response_id,
-            jsonrpc_errc::MissingRequiredClientCapability,
-            "params._meta must include clientCapabilities"
+            jsonrpc_errc::InvalidParams,
+            "params._meta clientCapabilities must be an object"
         );
         return false;
     }
@@ -363,9 +568,7 @@ int ModernHttpStatus(const JsonRpcResponse& response) {
     }
     if (
         response.error->code == jsonrpc_errc::UnsupportedProtocolVersion ||
-        response.error->code == jsonrpc_errc::HeaderMismatch ||
-        response.error->code ==
-            jsonrpc_errc::MissingRequiredClientCapability
+        response.error->code == jsonrpc_errc::HeaderMismatch
     ) {
         return 400;
     }
@@ -506,9 +709,11 @@ HttpJsonRpcServer::HttpJsonRpcServer(
 HttpJsonRpcServer::HttpJsonRpcServer(
     std::shared_ptr<JsonRpcTaskRuntime> runtime,
     const std::string& host,
-    int port
+    int port,
+    ToolSchemaResolver tool_schema_resolver
 )
     : runtime_(std::move(runtime))
+    , tool_schema_resolver_(std::move(tool_schema_resolver))
     , host_(host)
     , port_(port)
     , impl_(std::make_unique<Impl>())
@@ -531,7 +736,12 @@ HttpJsonRpcServer::HttpJsonRpcServer(
 
         JsonRpcRequest request;
         ModernHttpFailure failure;
-        if (!ValidateModernHttpRequest(req, request, failure)) {
+        if (!ValidateModernHttpRequest(
+                req,
+                request,
+                tool_schema_resolver_,
+                failure
+            )) {
             res.status = failure.status;
             res.set_content(failure.body.dump(), "application/json");
             return;
@@ -655,12 +865,22 @@ HttpJsonRpcServer::HttpJsonRpcServer(
         }
         if (!origin.empty()) {
             res.set_header("Access-Control-Allow-Origin", origin);
-            res.set_header("Vary", "Origin");
+            res.set_header("Vary", "Origin, Access-Control-Request-Headers");
+        }
+        const std::string requested_headers =
+            req.get_header_value("Access-Control-Request-Headers");
+        if (
+            !requested_headers.empty() &&
+            !ValidateCorsRequestHeaders(requested_headers)
+        ) {
+            res.status = 403;
+            return;
         }
         res.set_header("Access-Control-Allow-Methods", "POST, OPTIONS");
-        res.set_header(
-            "Access-Control-Allow-Headers",
-            "Content-Type, Accept, MCP-Protocol-Version, Mcp-Method, Mcp-Name"
+        res.set_header("Access-Control-Allow-Headers",
+            requested_headers.empty()
+                ? "Content-Type, Accept, MCP-Protocol-Version, Mcp-Method, Mcp-Name"
+                : requested_headers
         );
         res.status = 204;
     });

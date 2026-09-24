@@ -255,8 +255,8 @@ std::optional<JsonRpcResponse> execute_jsonrpc_task(
                     task,
                     std::nullopt,
                     make_error(
-                        jsonrpc_errc::MissingRequiredClientCapability,
-                        "Modern MCP requests require clientCapabilities"
+                        jsonrpc_errc::InvalidParams,
+                        "Modern MCP clientCapabilities must be an object"
                     )
                 );
             }
@@ -276,6 +276,9 @@ std::optional<JsonRpcResponse> execute_jsonrpc_task(
             }
 
             if (is_removed_modern_method(task.method)) {
+                if (task.is_notification()) {
+                    return std::nullopt;
+                }
                 return make_response(
                     task,
                     std::nullopt,

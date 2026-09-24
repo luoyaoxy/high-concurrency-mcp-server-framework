@@ -121,6 +121,7 @@ namespace jsonrpc_errc {
     constexpr int InternalError = -32603;
     // MCP 2026-07-28 规范保留错误码。
     constexpr int HeaderMismatch = -32020;
+    // 仅用于业务所需的具体客户端能力未声明，不用于字段格式错误。
     constexpr int MissingRequiredClientCapability = -32021;
     constexpr int UnsupportedProtocolVersion = -32022;
     // 应用自定义错误建议使用 -32000 ~ -32099

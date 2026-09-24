@@ -708,7 +708,10 @@ void run_http_mode(
     g_http_server = std::make_unique<HttpJsonRpcServer>(
         runtime,
         host,
-        port
+        port,
+        [&mcp_server](const std::string& tool_name) {
+            return mcp_server.find_tool_input_schema(tool_name);
+        }
     );
 
     // SSE 使用独立端口和专用 HTTP worker。

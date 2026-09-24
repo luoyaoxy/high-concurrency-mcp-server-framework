@@ -156,6 +156,18 @@ std::vector<Tool> McpServer::list_tools() const {
     return result;
 }
 
+std::optional<ToolInputSchema> McpServer::find_tool_input_schema(
+    const std::string& name
+) const {
+    std::shared_lock<std::shared_mutex> lock(tools_mutex_);
+
+    const auto tool = tools_.find(name);
+    if (tool == tools_.end()) {
+        return std::nullopt;
+    }
+    return tool->second.input_schema;
+}
+
 ToolResult McpServer::call_tool(
     const std::string& name,
     const json& arguments

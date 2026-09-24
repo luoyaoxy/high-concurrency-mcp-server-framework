@@ -63,13 +63,15 @@ httplib::Headers modern_headers(
 class HttpBatchTestServer {
 public:
     explicit HttpBatchTestServer(
-        std::shared_ptr<JsonRpcTaskRuntime> runtime
+        std::shared_ptr<JsonRpcTaskRuntime> runtime,
+        HttpJsonRpcServer::ToolSchemaResolver tool_schema_resolver = {}
     )
         : port_(g_next_http_test_port.fetch_add(1))
         , server_(std::make_unique<HttpJsonRpcServer>(
             std::move(runtime),
             "127.0.0.1",
-            port_
+            port_,
+            std::move(tool_schema_resolver)
         )) {}
 
     ~HttpBatchTestServer() {
@@ -764,7 +766,22 @@ TEST_F(HttpJsonRpcBatchTest, ValidatesModernHeadersAndVersion) {
     EXPECT_EQ(capability_response->status, 400);
     EXPECT_EQ(
         json::parse(capability_response->body)["error"]["code"],
-        -32021
+        jsonrpc_errc::InvalidParams
+    );
+
+    json invalid_capability = valid_request;
+    invalid_capability["id"] = 5;
+    invalid_capability["params"]["_meta"]
+        ["io.modelcontextprotocol/clientCapabilities"] = "invalid";
+    auto invalid_capability_response = client.Post(
+        "/mcp", modern_headers("server/discover"),
+        invalid_capability.dump(), "application/json"
+    );
+    ASSERT_TRUE(invalid_capability_response);
+    EXPECT_EQ(invalid_capability_response->status, 400);
+    EXPECT_EQ(
+        json::parse(invalid_capability_response->body)["error"]["code"],
+        jsonrpc_errc::InvalidParams
     );
 
     auto forbidden_headers = modern_headers("server/discover");
@@ -774,6 +791,29 @@ TEST_F(HttpJsonRpcBatchTest, ValidatesModernHeadersAndVersion) {
     );
     ASSERT_TRUE(forbidden);
     EXPECT_EQ(forbidden->status, 403);
+
+    const httplib::Headers preflight_headers = {
+        {"Origin", "http://localhost:3000"},
+        {"Access-Control-Request-Headers",
+         "Content-Type, Mcp-Name, Mcp-Param-message"}
+    };
+    auto preflight = client.Options("/mcp", preflight_headers);
+    ASSERT_TRUE(preflight);
+    EXPECT_EQ(preflight->status, 204);
+    EXPECT_EQ(
+        preflight->get_header_value("Access-Control-Allow-Headers"),
+        "Content-Type, Mcp-Name, Mcp-Param-message"
+    );
+
+    const httplib::Headers forbidden_preflight_headers = {
+        {"Origin", "http://localhost:3000"},
+        {"Access-Control-Request-Headers", "X-Undeclared-Header"}
+    };
+    auto forbidden_preflight = client.Options(
+        "/mcp", forbidden_preflight_headers
+    );
+    ASSERT_TRUE(forbidden_preflight);
+    EXPECT_EQ(forbidden_preflight->status, 403);
 }
 
 TEST_F(HttpJsonRpcBatchTest, RejectsUnknownMethodBatchAndObsoleteVerbs) {
@@ -851,4 +891,138 @@ TEST_F(HttpJsonRpcBatchTest, StreamsToolCallWithoutSseEventIds) {
     const json event = json::parse(response->body.substr(6));
     EXPECT_EQ(event.at("result").at("resultType"), "complete");
     EXPECT_FALSE(response->has_header("Mcp-Session-Id"));
+}
+
+TEST_F(HttpJsonRpcBatchTest, ValidatesToolParameterHeadersFromSchema) {
+    JsonRpcDispatcher dispatcher;
+    dispatcher.registerHandler("tools/call", [](const json&) {
+        return json{
+            {"resultType", "complete"},
+            {"content", json::array()}
+        };
+    });
+    auto runtime = std::make_shared<JsonRpcTaskRuntime>(
+        std::move(dispatcher), 8, 2
+    );
+
+    ToolInputSchema echo_schema;
+    echo_schema.properties = {
+        {"count", {{"type", "integer"}}},
+        {"enabled", {{"type", "boolean"}}},
+        {"message", {{"type", "string"}}}
+    };
+    echo_schema.required = {"message"};
+
+    HttpBatchTestServer server(
+        runtime,
+        [echo_schema](const std::string& name)
+            -> std::optional<ToolInputSchema> {
+            if (name == "echo") {
+                return echo_schema;
+            }
+            return std::nullopt;
+        }
+    );
+    server.start();
+    httplib::Client client("127.0.0.1", server.port());
+
+    const auto make_tool_request = [](json arguments, int id) {
+        json params = modern_params();
+        params["name"] = "echo";
+        params["arguments"] = std::move(arguments);
+        return json{
+            {"jsonrpc", "2.0"}, {"id", id},
+            {"method", "tools/call"}, {"params", std::move(params)}
+        };
+    };
+
+    auto valid_headers = modern_headers(
+        "tools/call", kLatestProtocolVersion, "echo"
+    );
+    valid_headers.emplace(
+        "Mcp-Param-message",
+        "=?base64?aGVsbG8gd29ybGQ=?="
+    );
+    valid_headers.emplace("Mcp-Param-count", "3");
+    valid_headers.emplace("Mcp-Param-enabled", "true");
+    auto valid = client.Post(
+        "/mcp", valid_headers,
+        make_tool_request(
+            {{"message", "hello world"}, {"count", 3}, {"enabled", true}},
+            10
+        ).dump(),
+        "application/json"
+    );
+    ASSERT_TRUE(valid);
+    EXPECT_EQ(valid->status, 200) << valid->body;
+
+    auto missing_argument_headers = modern_headers(
+        "tools/call", kLatestProtocolVersion, "echo"
+    );
+    auto missing_argument = client.Post(
+        "/mcp", missing_argument_headers,
+        make_tool_request(json::object(), 11).dump(),
+        "application/json"
+    );
+    ASSERT_TRUE(missing_argument);
+    EXPECT_EQ(missing_argument->status, 400);
+    EXPECT_EQ(
+        json::parse(missing_argument->body)["error"]["code"],
+        jsonrpc_errc::InvalidParams
+    );
+
+    auto missing_header = client.Post(
+        "/mcp",
+        modern_headers("tools/call", kLatestProtocolVersion, "echo"),
+        make_tool_request({{"message", "hello"}}, 12).dump(),
+        "application/json"
+    );
+    ASSERT_TRUE(missing_header);
+    EXPECT_EQ(missing_header->status, 400);
+    EXPECT_EQ(
+        json::parse(missing_header->body)["error"]["code"],
+        jsonrpc_errc::HeaderMismatch
+    );
+
+    auto mismatched_headers = modern_headers(
+        "tools/call", kLatestProtocolVersion, "echo"
+    );
+    mismatched_headers.emplace("Mcp-Param-message", "different");
+    auto mismatched = client.Post(
+        "/mcp", mismatched_headers,
+        make_tool_request({{"message", "hello"}}, 13).dump(),
+        "application/json"
+    );
+    ASSERT_TRUE(mismatched);
+    EXPECT_EQ(mismatched->status, 400);
+    EXPECT_EQ(
+        json::parse(mismatched->body)["error"]["code"],
+        jsonrpc_errc::HeaderMismatch
+    );
+
+    auto optional_absent_headers = modern_headers(
+        "tools/call", kLatestProtocolVersion, "echo"
+    );
+    optional_absent_headers.emplace("Mcp-Param-message", "hello");
+    auto optional_absent = client.Post(
+        "/mcp", optional_absent_headers,
+        make_tool_request({{"message", "hello"}}, 14).dump(),
+        "application/json"
+    );
+    ASSERT_TRUE(optional_absent);
+    EXPECT_EQ(optional_absent->status, 200) << optional_absent->body;
+
+    auto undeclared_headers = optional_absent_headers;
+    undeclared_headers.emplace("Mcp-Param-unknown", "value");
+    auto undeclared = client.Post(
+        "/mcp", undeclared_headers,
+        make_tool_request({{"message", "hello"}}, 15).dump(),
+        "application/json"
+    );
+    ASSERT_TRUE(undeclared);
+    EXPECT_EQ(undeclared->status, 400);
+    EXPECT_EQ(
+        json::parse(undeclared->body)["error"]["code"],
+        jsonrpc_errc::HeaderMismatch
+    );
 }

@@ -59,6 +59,11 @@ public:
     // 列出所有工具
     std::vector<Tool> list_tools() const;
 
+    // 查询工具输入 Schema；返回副本，避免调用方持有注册表锁。
+    std::optional<ToolInputSchema> find_tool_input_schema(
+        const std::string& name
+    ) const;
+
     // 调用工具
     ToolResult call_tool(const std::string& name, const json& arguments);
 

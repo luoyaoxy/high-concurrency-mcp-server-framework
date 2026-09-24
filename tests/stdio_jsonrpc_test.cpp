@@ -1,6 +1,7 @@
 #include "jsonrpc.h"
 #include "jsonrpc_request_context.h"
 #include "logger.h"
+#include "types.h"
 #include <gtest/gtest.h>
 
 #include <atomic>
@@ -229,6 +230,68 @@ TEST_F(StdioJsonRpcServerTest, NotificationNoResponse) {
 
     server.run();
     ASSERT_TRUE(out.str().empty());
+}
+
+TEST_F(StdioJsonRpcServerTest, RemovedModernNotificationHasNoResponse) {
+    std::stringstream in;
+    std::stringstream out;
+
+    const json metadata = {
+        {"io.modelcontextprotocol/protocolVersion", kLatestProtocolVersion},
+        {"io.modelcontextprotocol/clientCapabilities", json::object()}
+    };
+    in << makeFrame(json{
+        {"jsonrpc", "2.0"},
+        {"method", "notifications/initialized"},
+        {"params", {{"_meta", metadata}}}
+    });
+    in << makeFrame(json{
+        {"jsonrpc", "2.0"},
+        {"id", 21},
+        {"method", "notifications/initialized"},
+        {"params", {{"_meta", metadata}}}
+    });
+
+    auto runtime = makeRuntime(JsonRpcDispatcher{});
+    StdioJsonRpcServer server(runtime, in, out);
+    server.run();
+
+    const json response = parseFirstFramePayload(out.str());
+    EXPECT_EQ(response["id"], 21);
+    ASSERT_TRUE(response.contains("error"));
+    EXPECT_EQ(
+        response["error"]["code"],
+        jsonrpc_errc::MethodNotFound
+    );
+    EXPECT_EQ(out.str().find("\n"), out.str().rfind("\n"))
+        << "notification must not add an id:null response frame";
+}
+
+TEST_F(StdioJsonRpcServerTest, MalformedClientCapabilitiesAreInvalidParams) {
+    std::stringstream in;
+    std::stringstream out;
+
+    in << makeFrame(json{
+        {"jsonrpc", "2.0"},
+        {"id", 22},
+        {"method", "server/discover"},
+        {"params", {{"_meta", {
+            {"io.modelcontextprotocol/protocolVersion",
+             kLatestProtocolVersion},
+            {"io.modelcontextprotocol/clientCapabilities", "invalid"}
+        }}}}
+    });
+
+    auto runtime = makeRuntime(JsonRpcDispatcher{});
+    StdioJsonRpcServer server(runtime, in, out);
+    server.run();
+
+    const json response = parseFirstFramePayload(out.str());
+    ASSERT_TRUE(response.contains("error"));
+    EXPECT_EQ(
+        response["error"]["code"],
+        jsonrpc_errc::InvalidParams
+    );
 }
 
 TEST_F(StdioJsonRpcServerTest, UnsolicitedResponseIsIgnored) {

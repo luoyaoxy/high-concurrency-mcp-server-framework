@@ -99,6 +99,10 @@ TEST_F(McpServerTest, RegisterTool) {
     Tool tool;
     tool.name = "test_tool";
     tool.description = "Test tool";
+    tool.input_schema.properties = {
+        {"message", {{"type", "string"}}}
+    };
+    tool.input_schema.required = {"message"};
 
     server->register_tool(tool, [](const json& args) -> ToolResult {
         ToolResult result;
@@ -111,6 +115,14 @@ TEST_F(McpServerTest, RegisterTool) {
 
     EXPECT_TRUE(server->has_tool("test_tool"));
     EXPECT_FALSE(server->has_tool("nonexistent"));
+
+    const auto schema = server->find_tool_input_schema("test_tool");
+    ASSERT_TRUE(schema.has_value());
+    EXPECT_TRUE(schema->properties.contains("message"));
+    EXPECT_EQ(schema->required, std::vector<std::string>({"message"}));
+    EXPECT_FALSE(
+        server->find_tool_input_schema("nonexistent").has_value()
+    );
 }
 
 TEST_F(McpServerTest, ListTools) {

@@ -2,6 +2,8 @@
 #pragma once
 
 #include "jsonrpc_task_runtime.h"
+#include "types.h"
+#include <functional>
 #include <string>
 #include <memory>
 #include <atomic>
@@ -10,6 +12,10 @@ namespace mcp {
 
 class HttpJsonRpcServer {
 public:
+    using ToolSchemaResolver = std::function<
+        std::optional<ToolInputSchema>(const std::string&)
+    >;
+
  
     explicit HttpJsonRpcServer(
         std::shared_ptr<JsonRpcTaskRuntime> runtime
@@ -18,7 +24,8 @@ public:
     HttpJsonRpcServer(
         std::shared_ptr<JsonRpcTaskRuntime> runtime,
         const std::string& host,
-        int port
+        int port,
+        ToolSchemaResolver tool_schema_resolver = {}
     );
 
     ~HttpJsonRpcServer();
@@ -39,6 +46,7 @@ public:
 
 private:
     std::shared_ptr<JsonRpcTaskRuntime> runtime_;
+    ToolSchemaResolver tool_schema_resolver_;
     std::string host_;
     int port_;
     std::atomic<bool> running_{false};

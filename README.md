@@ -9,7 +9,7 @@
 - **Streamable HTTP** — 提供统一的 `POST /mcp` 端点；普通请求返回 JSON，工具调用可通过当前请求专属的 SSE 流返回结果。
 - **无状态请求** — 新版请求在 `params._meta` 中携带协议版本、客户端信息和客户端能力，不依赖 `initialize` 或协议级 Session。
 - **能力发现** — 实现 `server/discover`，返回服务器身份、能力和支持的协议版本。
-- **请求元数据校验** — 校验 `MCP-Protocol-Version`、`Mcp-Method` 和按需提供的 `Mcp-Name`，并返回新版协议错误码。
+- **请求元数据校验** — 校验 `MCP-Protocol-Version`、`Mcp-Method`、按需提供的 `Mcp-Name`，以及工具 Schema 声明的 `Mcp-Param-*`，并返回新版协议错误码。
 - **结果与缓存语义** — 新版结果包含 `resultType` 和服务器信息；列表及资源读取结果包含 `ttlMs`、`cacheScope`。
 - **双时代兼容** — 新版客户端使用 `/mcp`；原有 `/jsonrpc`、stdio `initialize` 和独立 SSE 服务继续为旧客户端及现有集成提供兼容。
 
